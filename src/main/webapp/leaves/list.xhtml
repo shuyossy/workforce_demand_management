@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<ui:composition
+  template="/WEB-INF/templates/main.xhtml"
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:p="http://primefaces.org/ui"
+>
+  <ui:define name="content">
+    <h:form id="listForm">
+      <p:tabView>
+        <p:tab title="自分の申請">
+          <p:dataTable
+            value="#{leaveListBean.myLeaves}"
+            var="r"
+            paginator="true"
+            rows="10"
+            emptyMessage="申請がありません"
+          >
+            <p:column headerText="ID">#{r.id}</p:column>
+            <p:column headerText="種別">#{r.leaveType}</p:column>
+            <p:column headerText="期間">#{r.period.startDate} ～ #{r.period.endDate}</p:column>
+            <p:column headerText="状態">
+              <h:outputText
+                value="#{r.status}"
+                styleClass="status-#{r.status.name().toLowerCase()}"
+              />
+            </p:column>
+            <p:column headerText="申請日時">#{r.appliedAt}</p:column>
+            <p:column headerText="操作">
+              <p:link outcome="/leaves/detail.xhtml" value="詳細">
+                <f:param name="id" value="#{r.id}" />
+              </p:link>
+            </p:column>
+          </p:dataTable>
+        </p:tab>
+
+        <p:tab title="承認待ち">
+          <p:dataTable
+            value="#{leaveListBean.approvableLeaves}"
+            var="r"
+            paginator="true"
+            rows="10"
+            emptyMessage="承認可能な申請がありません"
+          >
+            <p:column headerText="ID">#{r.id}</p:column>
+            <p:column headerText="申請者">#{r.applicantName} (#{r.applicantEmpNum})</p:column>
+            <p:column headerText="種別">#{r.leaveType}</p:column>
+            <p:column headerText="期間">#{r.period.startDate} ～ #{r.period.endDate}</p:column>
+            <p:column headerText="申請日時">#{r.appliedAt}</p:column>
+            <p:column headerText="操作">
+              <p:link outcome="/leaves/detail.xhtml" value="詳細">
+                <f:param name="id" value="#{r.id}" />
+              </p:link>
+            </p:column>
+          </p:dataTable>
+        </p:tab>
+      </p:tabView>
+    </h:form>
+  </ui:define>
+</ui:composition>

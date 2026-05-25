@@ -1,0 +1,14 @@
+# Undertow の HTTP listener で X-Forwarded-* ヘッダを信頼する設定。
+#
+# 本ボイラープレートは社内独自の認証サーバ（リバプロ）の裏で動かす想定:
+#   利用者 → https://aaa/<junction-path>/rcb/...  (認証サーバ)
+#         → https://bbb/rcb/...                   (WildFly = この設定)
+#
+# 認証サーバが付ける X-Forwarded-Host / -Proto / -For を信頼することで、
+# アプリ側で生成する絶対 URL（shared.web.AppUrlBuilder 等）が外部公開 URL と
+# 整合する。AGENTS.md「社内独自の認証サーバについて」節と対応。
+#
+# セキュリティ前提: この設定は X-Forwarded-* を“無条件で信頼する”ため、
+# 信頼できないネットワーク（インターネット直結など）に WildFly を晒さない構成が必須。
+# 本ボイラープレートは社内プライベートネットワーク内の利用を前提としている。
+/subsystem=undertow/server=default-server/http-listener=default:write-attribute(name=proxy-address-forwarding, value=true)

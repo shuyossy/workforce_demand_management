@@ -1,0 +1,15 @@
+.content {
+  padding: 1rem;
+}
+.form-row {
+  margin-bottom: 1rem;
+}
+.status-pending {
+  color: #b58900;
+}
+.status-approved {
+  color: #2aa198;
+}
+.status-rejected {
+  color: #dc322f;
+}

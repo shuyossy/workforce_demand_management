@@ -1,0 +1,150 @@
+lint:format:
+  stage: quality
+  image: $IMAGE_NODE
+  needs: ['setup:node']
+  script:
+    - npm run format:check
+
+lint:eslint:
+  stage: quality
+  image: $IMAGE_NODE
+  needs: ['setup:node']
+  script:
+    - npm run lint
+
+lint:checkstyle:
+  stage: quality
+  image: $IMAGE_MAVEN
+  needs: ['setup:maven']
+  cache:
+    - <<: *cache_maven
+  # Checkstyle は pom.xml に google (google_checks + severity=error 1 行パッチの hard gate)
+  # と blocking (プロジェクト独自致命パターンの hard gate) の 2 つの execution を定義している。
+  # `checkstyle:check` を引数なしで呼ぶと plugin 既定の sun_checks で走ってしまうため、
+  # @execution-id 構文で両方を明示的に起動する。どちらも violation で fail。
+  script:
+    - ./mvnw $MAVEN_CLI_OPTS checkstyle:check@checkstyle-google checkstyle:check@checkstyle-blocking
+
+lint:pmd:
+  stage: quality
+  image: $IMAGE_MAVEN
+  needs: ['setup:maven']
+  cache:
+    - <<: *cache_maven
+  script:
+    - ./mvnw $MAVEN_CLI_OPTS pmd:check
+
+lint:spotbugs:
+  stage: quality
+  image: $IMAGE_MAVEN
+  needs: ['setup:maven']
+  cache:
+    - <<: *cache_maven
+  # clean を入れて IDE (VSCode Eclipse JDT-LS) の error recovery stub による
+  # target/classes 汚染が万一ジョブ間で混入したケースに備える。
+  script:
+    - ./mvnw $MAVEN_CLI_OPTS clean compile spotbugs:check
+
+# test:java: JUnit (Surefire 単体) + ArchUnit + Failsafe (結合テスト, *IT.java) + JaCoCo を
+#            verify lifecycle で一括実行する。SpotBugs / Checkstyle / PMD も同時に走り、
+#            ローカル `./mvnw clean verify` と同じ振る舞いになる。
+# test:js: フロントエンドの JS テストは現状なく、npm スクリプトのスタブが exit 0 で通過する。
+#          JS テストを追加する場合は package.json の test:coverage を実体に置き換える。
+# coverage:java: test:java で生成済みの jacoco-merged.exec を読み取って report と check を
+#                再描画する（test:java で完了済みのため冪等）。
+test:java:
+  stage: quality
+  image: $IMAGE_MAVEN
+  needs: ['setup:maven']
+  cache:
+    - <<: *cache_maven
+  script:
+    - ./mvnw $MAVEN_CLI_OPTS clean verify
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - target/surefire-reports/TEST-*.xml
+        - target/failsafe-reports/TEST-*.xml
+    paths:
+      - target/jacoco.exec
+      - target/jacoco-it.exec
+      - target/jacoco-merged.exec
+      - target/surefire-reports/
+      - target/failsafe-reports/
+      - target/spotbugsXml.xml
+    expire_in: 1 week
+    optional: true
+
+test:js:
+  stage: quality
+  image: $IMAGE_NODE
+  needs: ['setup:node']
+  script:
+    # JS テストを導入する場合は package.json の test:coverage を実体に置き換える（現状はスタブ）。
+    - npm run test:coverage
+
+# e2e:playwright: WildFly + H2 (file-based, target/h2/) + Playwright で E2E を実行し、
+#                 JaCoCo agent を WildFly JVM に attach して target/jacoco-e2e.exec を採取する。
+#                 verify phase で jacoco-merged.exec を上書き生成し、-Pe2e の
+#                 check-layered-coverage-e2e (基本 95% 閾値) で hard gate を再評価する。
+# 依存:           setup:maven (Maven cache) + setup:node (npm/playwright)
+e2e:playwright:
+  stage: quality
+  image: $IMAGE_MAVEN
+  needs: ['setup:maven', 'setup:node']
+  cache:
+    - <<: *cache_maven
+  variables:
+    WILDFLY_VERSION: '32.0.1.Final'
+    WILDFLY_HOME: '/tmp/wildfly-32.0.1.Final'
+    WILDFLY_HOST: 'localhost'
+    WILDFLY_MGMT_PORT: '9990'
+    WILDFLY_DEBUG_PORT: '8787'
+    WILDFLY_USER: 'admin'
+    WILDFLY_PASSWORD: 'admin'
+    BASE_URL: 'http://localhost:8080/rcb'
+  before_script:
+    # IMAGE_MAVEN には Node.js が含まれないため、apt-get で導入。
+    # （Maven プロファイル e2e は tests/e2e 配下で npm ci + playwright install を呼ぶ）
+    - apt-get update && apt-get install -y --no-install-recommends curl unzip nodejs npm
+    # WildFly を取得（download cache がない場合のみ）
+    - if [ ! -x "$WILDFLY_HOME/bin/standalone.sh" ]; then
+        curl -fsSL "https://github.com/wildfly/wildfly/releases/download/${WILDFLY_VERSION}/wildfly-${WILDFLY_VERSION}.zip" -o /tmp/wildfly.zip;
+        unzip -q /tmp/wildfly.zip -d /tmp/;
+        rm /tmp/wildfly.zip;
+      fi
+  script:
+    - ./mvnw $MAVEN_CLI_OPTS -Pe2e verify
+  artifacts:
+    when: always
+    paths:
+      - target/jacoco-e2e.exec
+      - target/jacoco-merged.exec
+      - target/site/jacoco/
+      - tests/e2e/playwright-report/
+      - tests/e2e/test-results/
+    expire_in: 1 week
+    optional: true
+
+coverage:java:
+  stage: quality
+  image: $IMAGE_MAVEN
+  # coverage:java は E2E 統合済みの jacoco-merged.exec を読み取って hard gate を再評価する。
+  # e2e:playwright の artifact (jacoco-merged.exec) を引き継ぐため needs に追加する。
+  needs: ['test:java', 'e2e:playwright']
+  cache:
+    - <<: *cache_maven
+  script:
+    # JaCoCo の層別カバレッジ閾値は pom.xml `ci-mr` profile の <rules> で定義する。
+    # -Pe2e の check-layered-coverage-e2e は WildFly 起動を要するためここでは呼ばず、
+    # e2e:playwright ジョブで既に hard gate 通過済みの merged exec を report として再描画する。
+    - ./mvnw $MAVEN_CLI_OPTS -Pci-mr jacoco:report jacoco:check
+
+secret:gitleaks:
+  stage: quality
+  image:
+    name: $IMAGE_GITLEAKS
+    entrypoint: ['']
+  script:
+    - gitleaks detect --source=. --no-git=false --verbose

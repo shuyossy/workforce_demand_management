@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:f="jakarta.faces.core"
+  xmlns:p="http://primefaces.org/ui"
+>
+  <h:head>
+    <title>ログイン</title>
+    <h:outputStylesheet library="css" name="app.css" />
+  </h:head>
+  <h:body>
+    <h:form id="loginForm">
+      <p:panel header="開発用ログイン">
+        <p:messages />
+        <div class="form-row">
+          <p:outputLabel for="user" value="ユーザ:" />
+          <p:selectOneMenu id="user" value="#{loginBean.selectedEmpNum}">
+            <f:selectItem itemValue="" itemLabel="--- 選択 ---" />
+            <f:selectItems
+              value="#{loginBean.availableUsers}"
+              var="u"
+              itemLabel="#{u.displayLabel}"
+              itemValue="#{u.empNum}"
+            />
+          </p:selectOneMenu>
+        </div>
+        <p:commandButton value="ログイン" action="#{loginBean.doLogin}" ajax="false" />
+      </p:panel>
+    </h:form>
+  </h:body>
+</html>

@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<ruleset name="Project PMD Blocking Ruleset"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <description>Blocking rules run during pre-commit. Only undisputed error-prone patterns.</description>
+
+  <rule ref="category/java/errorprone.xml/AvoidCatchingThrowable"/>
+  <rule ref="category/java/errorprone.xml/EmptyCatchBlock"/>
+  <!-- PMD 7.x で EmptyFinallyBlock は EmptyControlStatement に統合（codestyle category） -->
+  <rule ref="category/java/codestyle.xml/EmptyControlStatement"/>
+  <rule ref="category/java/errorprone.xml/AvoidBranchingStatementAsLastInLoop"/>
+  <rule ref="category/java/errorprone.xml/CloseResource"/>
+  <rule ref="category/java/errorprone.xml/DontImportSun"/>
+  <rule ref="category/java/errorprone.xml/UseEqualsToCompareStrings"/>
+
+  <!-- 社内ライブラリ由来のコピーパッケージは解析対象外（詳細は rules/pmd/ruleset.xml 参照）。 -->
+  <exclude-pattern>.*/src/main/java/jp/mufg/it/rcb/log/cdi/.*</exclude-pattern>
+  <exclude-pattern>.*/src/main/java/jp/mufg/it/rcb/exception/.*</exclude-pattern>
+  <exclude-pattern>.*/src/main/java/jp/mufg/it/rcb/userinfo/dto/.*</exclude-pattern>
+</ruleset>

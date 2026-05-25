@@ -1,0 +1,59 @@
+# Maven site（Checkstyle / PMD / SpotBugs / JUnit / JaCoCo の HTML レポート集約）を生成し、
+# artifact として受け渡して pages ジョブが public/reports/ サブパスに配置する。
+# Pages 公開は main / jakartaEE ブランチに対して走る。
+site:java:
+  stage: pages
+  image: $IMAGE_MAVEN
+  needs: ['setup:maven']
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "jakartaEE"'
+  cache:
+    - <<: *cache_maven
+  # ci-main profile で verify（Checkstyle/PMD/SpotBugs/Surefire が XML を生成）→ そのまま site 生成。
+  # report-only を使う Surefire は既存 XML が必要なため、必ず verify と連結する。
+  script:
+    - ./mvnw $MAVEN_CLI_OPTS -Pci-main verify site
+  artifacts:
+    paths:
+      - target/site
+    expire_in: 1 week
+
+# 既存: Docusaurus の GitLab Pages 公開。site:java と e2e:playwright の artifact を受け取り、
+#       public/reports/jacoco/ (E2E 統合済み) と public/reports/playwright/ に合成。
+pages:
+  stage: pages
+  image: $IMAGE_NODE
+  needs:
+    - job: site:java
+      artifacts: true
+    # E2E カバレッジ統合済みの jacoco レポート / Playwright HTML レポートも公開する。
+    # e2e:playwright が走らなかったブランチ（main / jakartaEE 以外）では optional でスキップされる。
+    - job: e2e:playwright
+      artifacts: true
+      optional: true
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH == "jakartaEE"'
+  cache:
+    key: 'docs-$CI_COMMIT_REF_SLUG'
+    paths:
+      - docs/node_modules/
+  before_script:
+    - cd docs
+    - npm ci
+  script:
+    - npm run build
+    - mv build ../public
+    - mkdir -p ../public/reports
+    - cp -r ../target/site/. ../public/reports/
+    # E2E 統合済みの jacoco レポート（target/site/jacoco/ 配下）は site:java の artifact に
+    # 含まれている本体 verify 由来のものになる。E2E 込みレポートを公開するため、
+    # e2e:playwright が成功している場合のみ target/site/jacoco/ を上書きする。
+    - |
+      if [ -d ../tests/e2e/playwright-report ]; then
+        mkdir -p ../public/reports/playwright
+        cp -r ../tests/e2e/playwright-report/. ../public/reports/playwright/
+      fi
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week

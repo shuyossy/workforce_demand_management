@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:h="jakarta.faces.html"
+  xmlns:p="http://primefaces.org/ui"
+>
+  <h:head>
+    <title>エラー</title>
+    <h:outputStylesheet library="css" name="app.css" />
+  </h:head>
+  <h:body>
+    <h:form>
+      <p:panel header="エラーが発生しました">
+        <p>
+          処理中に問題が発生しました。お手数ですが、しばらく時間をおいてから再度お試しください。
+        </p>
+        <h:link value="ログイン画面へ戻る" outcome="/login" />
+      </p:panel>
+    </h:form>
+  </h:body>
+</html>

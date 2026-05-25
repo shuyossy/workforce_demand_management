@@ -1,0 +1,4 @@
+# YAML 構文として不正（インデントが揃わずキーが衝突）。SnakeYAML が YAMLException を投げる。
+dev-users:
+  - empNum: E0001
+   name: 山田 太郎

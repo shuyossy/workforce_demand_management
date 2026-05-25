@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sak-dev-postgres
+    environment:
+      POSTGRES_DB: sampleapp
+      POSTGRES_USER: sampleapp
+      POSTGRES_PASSWORD: sampleapp
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sampleapp']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # wildfly:
+  #   build:
+  #     context: ./wildfly
+  #     dockerfile: Dockerfile
+  #   container_name: sak-dev-wildfly
+  #   ports:
+  #     - '8080:8080' # HTTP
+  #     - '9990:9990' # Management
+  #     - '8787:8787' # JVM debug
+  #   environment:
+  #     DB_URL: jdbc:postgresql://postgres:5432/sampleapp
+  #     DB_USER: sampleapp
+  #     DB_PASSWORD: sampleapp
+  #     APP_CONTEXT_ROOT: /rcb
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   command:
+  #     [
+  #       '/opt/jboss/wildfly/bin/standalone.sh',
+  #       '-b',
+  #       '0.0.0.0',
+  #       '-bmanagement',
+  #       '0.0.0.0',
+  #       '--debug',
+  #       '*:8787',
+  #     ]
+
+volumes:
+  postgres-data:

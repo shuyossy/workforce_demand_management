@@ -1,0 +1,16 @@
+node_modules/
+target/
+src/main/resources/static/js/
+src/main/resources/static/assets/
+.husky/_/
+package-lock.json
+
+# 計画書・設計書は整形対象外（内容保護）
+docs/plans/
+
+# GitLab CI フラグメント（include で連結される前提で YAML anchor 参照を含むため、
+# 単体では Prettier の内蔵 YAML パーサがエイリアス未解決エラーになる）
+.gitlab/ci/
+
+# 異常系テスト fixture（不正な YAML / JSON をわざと与えるためフォーマット対象外）
+src/test/resources/dev-users-broken-yaml.yml

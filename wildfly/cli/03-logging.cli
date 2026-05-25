@@ -1,0 +1,19 @@
+# アプリケーションロガー設定。
+# @InjectLogger でインジェクトされる JUL ロガー（messages.properties 解決 + MDC 反映）
+# のレベルと CONSOLE フォーマッタを WildFly 側で揃える。
+
+# jp.mufg.it.rcb 配下のロガーレベルを INFO に設定（業務ログを CONSOLE に出す最小レベル）。
+# RCB00001-E / -W / -I で始まるメッセージはすべてこのロガー経由で出る。FINE 以下は
+# 各ロガー呼び出し側でレベルを引き上げない限り出力されない（テンプレ運用に揃える）。
+if (outcome != success) of /subsystem=logging/logger=jp.mufg.it.rcb:read-resource
+  /subsystem=logging/logger=jp.mufg.it.rcb:add(level=INFO)
+end-if
+
+# CONSOLE 用 pattern-formatter に MDC を含める。
+# %X{requestId}: AccessLogFilter が 1 リクエスト 1 ID で MDC に詰める追跡用キー。
+# %X{empNum}:    UserInfoContext がログイン済みユーザの empNum を MDC に詰める運用キー。
+# これにより横串でリクエスト/利用者を grep 可能になる（運用ログ要件）。
+/subsystem=logging/pattern-formatter=PATTERN:read-resource
+if (outcome != success) of /subsystem=logging/pattern-formatter=PATTERN:read-resource
+  /subsystem=logging/pattern-formatter=PATTERN:add(pattern="%d{yyyy-MM-dd'T'HH:mm:ss.SSS} %-5p [%c] [%X{requestId}][%X{empNum}] %s%e%n")
+end-if

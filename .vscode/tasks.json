@@ -1,0 +1,124 @@
+{
+  "version": "2.0.0",
+  "inputs": [
+    {
+      "id": "resetConfirm",
+      "type": "promptString",
+      "description": "全テーブル削除＋再シードします。実行するなら 'yes' と入力してください",
+      "default": ""
+    }
+  ],
+  "tasks": [
+    {
+      "label": "dev:bootstrap-and-deploy",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "wildfly:ensure-running",
+        "flyway:migrate",
+        "wildfly:apply-config",
+        "wildfly:redeploy"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:bootstrap-and-tail",
+      "dependsOrder": "parallel",
+      "dependsOn": ["dev:bootstrap-and-deploy", "wildfly:tail-log"],
+      "problemMatcher": []
+    },
+    {
+      "label": "wildfly:tail-log",
+      "type": "shell",
+      "command": "bash scripts/with-env.sh bash scripts/wildfly-tail-log.sh",
+      "isBackground": true,
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "always",
+        "focus": false,
+        "clear": true,
+        "group": "wildfly-logs"
+      },
+      "problemMatcher": {
+        "owner": "wildfly-log",
+        "pattern": [{ "regexp": "^$", "file": 1, "location": 2, "message": 3 }],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "."
+        }
+      }
+    },
+    {
+      "label": "wildfly:ensure-running",
+      "type": "shell",
+      "command": "bash scripts/with-env.sh bash scripts/wildfly-ensure-running.sh",
+      "problemMatcher": []
+    },
+    {
+      "label": "wildfly:stop",
+      "type": "shell",
+      "command": "bash scripts/with-env.sh bash scripts/wildfly-stop.sh",
+      "problemMatcher": []
+    },
+    {
+      "label": "wildfly:apply-config",
+      "type": "shell",
+      "command": "bash scripts/with-env.sh ./mvnw -q wildfly:execute-commands",
+      "problemMatcher": []
+    },
+    {
+      "label": "wildfly:redeploy",
+      "type": "shell",
+      "command": "bash scripts/with-env.sh ./mvnw -q -DskipTests package wildfly:deploy -Dwildfly.force=true",
+      "problemMatcher": []
+    },
+    {
+      "label": "wildfly:undeploy",
+      "type": "shell",
+      "command": "bash scripts/with-env.sh ./mvnw -q wildfly:undeploy",
+      "problemMatcher": []
+    },
+    {
+      "label": "flyway:migrate",
+      "type": "shell",
+      "command": "bash scripts/with-env.sh ./mvnw -q flyway:migrate",
+      "problemMatcher": []
+    },
+    {
+      "label": "flyway:info",
+      "type": "shell",
+      "command": "bash scripts/with-env.sh ./mvnw -q flyway:info",
+      "problemMatcher": []
+    },
+    {
+      "label": "flyway:reset",
+      "type": "shell",
+      "command": "if [ \"${input:resetConfirm}\" = 'yes' ]; then bash scripts/with-env.sh ./mvnw -q -Pdev-seed flyway:clean flyway:migrate sql:execute@seed-dev; else echo 'Aborted.'; fi",
+      "problemMatcher": []
+    },
+    {
+      "label": "playwright:install",
+      "type": "shell",
+      "command": "cd tests/e2e && npx playwright install",
+      "problemMatcher": []
+    },
+    {
+      "label": "playwright:test",
+      "type": "shell",
+      "command": "bash scripts/with-env.sh bash -c 'cd tests/e2e && npx playwright test'",
+      "problemMatcher": []
+    },
+    {
+      "label": "k6:smoke",
+      "type": "shell",
+      "command": "bash scripts/with-env.sh k6 run tests/perf/smoke.js",
+      "problemMatcher": []
+    },
+    {
+      "label": "mvn:verify",
+      "type": "shell",
+      "command": "bash scripts/with-env.sh ./mvnw -q verify",
+      "problemMatcher": ["$tsc"]
+    }
+  ]
+}

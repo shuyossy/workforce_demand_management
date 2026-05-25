@@ -1,0 +1,35 @@
+# WildFly 起動前の offline クリーンアップ（embed-server モードで実行）。
+# scripts/wildfly-ensure-running.sh から jboss-cli.sh --file=... で呼ばれる。
+#
+# 役割: 前回のセッション（特に -Pe2e）が standalone.xml に永続化したデータソース
+# 定義をすべて取り除き、起動後に 01-datasource-*.cli が冪等にクリーンな再登録を
+# できる状態にする。online CLI では data-source remove が process-state=reload-required
+# を伴うため同 JNDI での再 add や driver remove ができず、E2E ↔ 通常デバッグの切替が
+# 壊れる（WFLYCTL0171 / DuplicateServiceException）。embed-server モードは standalone.xml
+# を直接書き換えるためその制約を受けない。
+#
+# WildFly 同梱の h2 driver (com.h2database.h2) には触らない（標準同梱品）。
+
+embed-server --std-out=echo
+
+# 旧 PostgresDS data-source を取り除く
+if (outcome == success) of /subsystem=datasources/data-source=PostgresDS:read-resource
+  /subsystem=datasources/data-source=PostgresDS:remove
+end-if
+
+# 旧 H2DS data-source（-Pe2e が登録）を取り除く
+if (outcome == success) of /subsystem=datasources/data-source=H2DS:read-resource
+  /subsystem=datasources/data-source=H2DS:remove
+end-if
+
+# postgresql jdbc-driver を取り除く（01-datasource-postgres.cli が冪等に再 add する）
+if (outcome == success) of /subsystem=datasources/jdbc-driver=postgresql:read-resource
+  /subsystem=datasources/jdbc-driver=postgresql:remove
+end-if
+
+# h2-e2e jdbc-driver を取り除く（-Pe2e の 01-datasource-h2.cli が冪等に再 add する）
+if (outcome == success) of /subsystem=datasources/jdbc-driver=h2-e2e:read-resource
+  /subsystem=datasources/jdbc-driver=h2-e2e:remove
+end-if
+
+stop-embedded-server

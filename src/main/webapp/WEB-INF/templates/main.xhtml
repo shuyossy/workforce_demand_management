@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<html
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:p="http://primefaces.org/ui"
+  xmlns:f="jakarta.faces.core"
+>
+  <f:view contentType="text/html" locale="ja">
+    <h:head>
+      <!-- サンプル: 適用先プロジェクトのアプリ名に置換すること（→ docs/01-getting-started/strip-sample.md） -->
+      <title>休暇申請サンプル</title>
+      <h:outputStylesheet library="css" name="app.css" />
+    </h:head>
+    <h:body>
+      <!--
+        PrimeFaces 14 + server state saving (web.xml: jakarta.faces.STATE_SAVING_METHOD=server) では
+        <p:menuitem url="..."/> や <h:outputText> も state restoration JS の hook 先として form
+        ancestor を要求する（form 外配置だと Mojarra OutcomeTargetRenderer が "needs Form in
+        ancestry" WARN を発行）。menubar 全体を <h:form id="topForm"> で包むことでまとめて解消する。
+        各ページ側 <h:form>（formNew / listForm / detailForm）は <ui:insert name="content"> 内、
+        すなわち topForm の外で展開されるため form-in-form にはならない。
+      -->
+      <h:form id="topForm">
+        <p:menubar>
+          <!-- サンプル: menuitem はサンプル（leave）固定。削除/置換は strip-sample.md 参照 -->
+          <p:menuitem value="休暇一覧" url="#{request.contextPath}/leaves/list.xhtml" />
+          <p:menuitem value="新規申請" url="#{request.contextPath}/leaves/new.xhtml" />
+          <f:facet name="options">
+            <h:outputText
+              value="#{loginBean.currentUserName}"
+              rendered="#{not empty loginBean.currentUserName}"
+            />
+            <p:commandButton
+              value="ログアウト"
+              action="#{loginBean.logout}"
+              ajax="false"
+              rendered="#{not empty loginBean.currentUserName}"
+            />
+          </f:facet>
+        </p:menubar>
+      </h:form>
+
+      <p:messages id="globalMessages" showDetail="true" closable="true" />
+
+      <div class="content">
+        <ui:insert name="content" />
+      </div>
+    </h:body>
+  </f:view>
+</html>

@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "F5: Run app & attach debugger",
+      "request": "attach",
+      "hostName": "localhost",
+      "port": 8787,
+      "envFile": "${workspaceFolder}/.env",
+      "preLaunchTask": "dev:bootstrap-and-tail",
+      "projectName": "sak-dev-env"
+    },
+    {
+      "type": "java",
+      "name": "Attach to WildFly (8787)",
+      "request": "attach",
+      "hostName": "localhost",
+      "port": 8787,
+      "envFile": "${workspaceFolder}/.env",
+      "projectName": "sak-dev-env"
+    },
+    {
+      "type": "node",
+      "name": "Playwright (golden path, headed)",
+      "request": "launch",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["playwright", "test", "--headed"],
+      "cwd": "${workspaceFolder}/tests/e2e",
+      "envFile": "${workspaceFolder}/.env"
+    }
+  ]
+}

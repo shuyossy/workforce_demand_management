@@ -1,0 +1,130 @@
+<?xml version="1.0"?>
+<ruleset name="Project PMD Ruleset"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+  <description>
+    PMD 7.x 標準 8 カテゴリを参照するフル ruleset。構造的衝突は rules/README.md §4.5 のフローで
+    個別判断のうえ exclude / property 緩和する。
+  </description>
+
+  <!--
+    カスタマイズ手順:
+    1) <rule ref="category/.../xxx.xml"/> を閉じタグ付きに展開し、内側に <exclude name="XXX"/>。
+       または個別 <rule ref=".../XXX"> を後ろに並べて property を後勝ち上書き。
+    2) rules/README.md §4.5 の表に追記。
+    個別ソース抑制は @SuppressWarnings("PMD.XXX") または行末 // NOPMD - <理由>。
+  -->
+
+  <!-- ===== bestpractices ===== -->
+  <rule ref="category/java/bestpractices.xml"/>
+  <!--
+    UnitTestContainsTooManyAsserts はテストクラス（*Test / *IT）に限定抑制。
+    「1 シナリオ＝1 観点・複数 assert」は AAA + 状態遷移検証の現実的書き方のため。
+  -->
+  <rule ref="category/java/bestpractices.xml/UnitTestContainsTooManyAsserts">
+    <properties>
+      <property name="violationSuppressXPath"
+        value="./ancestor-or-self::*[@SimpleName and (ends-with(@SimpleName,'Test') or ends-with(@SimpleName,'IT'))]"/>
+    </properties>
+  </rule>
+
+  <!-- ===== codestyle ===== -->
+  <rule ref="category/java/codestyle.xml">
+    <!-- OnlyOneReturn: モダン Java のガード節（Google Style 公式採用）と構造的衝突。 -->
+    <exclude name="OnlyOneReturn"/>
+  </rule>
+  <!-- ShortVariable: JPA/DTO の `id` 等の業界標準命名を許容するため minimum=2 に緩和。1 文字は検出継続。 -->
+  <rule ref="category/java/codestyle.xml/ShortVariable">
+    <properties>
+      <property name="minimum" value="2"/>
+    </properties>
+  </rule>
+  <!-- LongVariable: 業務語彙のメッセージ ID 等を許容するため minimum=32 に緩和。 -->
+  <rule ref="category/java/codestyle.xml/LongVariable">
+    <properties>
+      <property name="minimum" value="32"/>
+    </properties>
+  </rule>
+  <!--
+    TooManyStaticImports: AssertJ + Mockito の静的 import 慣行と整合させるため maximumStaticImports=20。
+    ImportDeclaration は CompilationUnit 直下のため violationSuppressXPath での抑制が効かず、
+    @SuppressWarnings も PMD CLI / maven-pmd-plugin で発火挙動が一致しないため property 緩和を採用。
+  -->
+  <rule ref="category/java/codestyle.xml/TooManyStaticImports">
+    <properties>
+      <property name="maximumStaticImports" value="20"/>
+    </properties>
+  </rule>
+
+  <!-- ===== design ===== -->
+  <rule ref="category/java/design.xml">
+    <!--
+      LawOfDemeter: enum 定数アクセスを foreign field として誤検知する false-positive が多い。
+      PMD CLI / maven-pmd-plugin で発火挙動が一致せず @SuppressWarnings が誤検知を引き起こす二重トラブル。
+      設計レベルの LoD レビューはコードレビューで担保する方針。
+    -->
+    <exclude name="LawOfDemeter"/>
+  </rule>
+
+  <!-- ===== documentation ===== -->
+  <rule ref="category/java/documentation.xml"/>
+  <!--
+    CommentSize: Spotless google-java-format による Javadoc 自動再フローと構造的衝突するため
+    maxLines=15 / maxLineLength=120 に緩和。本番ロジックの行長は Checkstyle 側で hard gate する。
+  -->
+  <rule ref="category/java/documentation.xml/CommentSize">
+    <properties>
+      <property name="maxLines" value="15"/>
+      <property name="maxLineLength" value="120"/>
+    </properties>
+  </rule>
+
+  <!-- ===== errorprone ===== -->
+  <rule ref="category/java/errorprone.xml"/>
+  <!--
+    テストクラス（*Test / *IT）限定抑制：
+    - AvoidDuplicateLiterals: テスト固定値の繰返しは Given/When/Then の観察対象。本番側は検出継続。
+    - AvoidAccessibilityAlteration: テスト用 reflection は典型パターン。本番側 hard gate 維持。
+    - TestClassWithoutTestCases: IT 内 nested helper への誤検知対処。
+  -->
+  <rule ref="category/java/errorprone.xml/AvoidDuplicateLiterals">
+    <properties>
+      <property name="violationSuppressXPath"
+        value="./ancestor-or-self::*[@SimpleName and (ends-with(@SimpleName,'Test') or ends-with(@SimpleName,'IT'))]"/>
+    </properties>
+  </rule>
+  <rule ref="category/java/errorprone.xml/AvoidAccessibilityAlteration">
+    <properties>
+      <property name="violationSuppressXPath"
+        value="./ancestor-or-self::*[@SimpleName and (ends-with(@SimpleName,'Test') or ends-with(@SimpleName,'IT'))]"/>
+    </properties>
+  </rule>
+  <rule ref="category/java/errorprone.xml/TestClassWithoutTestCases">
+    <properties>
+      <property name="violationSuppressXPath"
+        value="./ancestor-or-self::*[@SimpleName and (ends-with(@SimpleName,'Test') or ends-with(@SimpleName,'IT'))]"/>
+    </properties>
+  </rule>
+
+  <!-- ===== multithreading / performance / security ===== -->
+  <rule ref="category/java/multithreading.xml"/>
+  <rule ref="category/java/performance.xml">
+    <!--
+      TooFewBranchesForSwitch: 将来拡張を想定した 2 値 enum の switch 式を if-else に書き換えると
+      enum 拡張時の網羅性チェックが失われる。PMD CLI / maven-pmd-plugin で発火挙動が一致せず
+      @SuppressWarnings が誤検知を引き起こす構造的問題。
+    -->
+    <exclude name="TooFewBranchesForSwitch"/>
+  </rule>
+  <rule ref="category/java/security.xml"/>
+
+  <!--
+    社内ライブラリ由来のコピーパッケージは解析対象外。差し替え時にスタイル差分が発生しないようにする。
+    独自実装パッケージ（jp.mufg.it.rcb.config）は解析対象として残す。
+  -->
+  <exclude-pattern>.*/src/main/java/jp/mufg/it/rcb/log/cdi/.*</exclude-pattern>
+  <exclude-pattern>.*/src/main/java/jp/mufg/it/rcb/exception/.*</exclude-pattern>
+  <exclude-pattern>.*/src/main/java/jp/mufg/it/rcb/userinfo/dto/.*</exclude-pattern>
+</ruleset>

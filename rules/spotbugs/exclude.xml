@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+  <!--
+    SpotBugs + FindSecBugs の false positive 対策。
+    まず @SuppressFBWarnings での個別抑制を検討し、構造的に再発するパターンのみ <Match> を追加する。
+  -->
+
+  <!--
+    社内ライブラリ由来のコピーパッケージは解析対象外（差し替え時のスタイル差分を防ぐため）。
+    独自実装パッケージ（jp.mufg.it.rcb.config）は解析対象として残す。
+  -->
+  <Match>
+    <Class name="~jp\.mufg\.it\.rcb\.log\.cdi\..*"/>
+  </Match>
+  <Match>
+    <Class name="~jp\.mufg\.it\.rcb\.exception\..*"/>
+  </Match>
+  <Match>
+    <Class name="~jp\.mufg\.it\.rcb\.userinfo\.dto\..*"/>
+  </Match>
+
+  <!--
+    ConfigFactory.getConfigMap の MS_EXPOSE_REP 抑制。
+    返却 Map は buildConfigMap 内で Collections.unmodifiableMap ラップ済みのため
+    内部状態の公開は安全（SpotBugs では静的検出不可能）。
+  -->
+  <Match>
+    <Class name="jp.mufg.it.rcb.config.ConfigFactory"/>
+    <Method name="getConfigMap"/>
+    <Bug pattern="MS_EXPOSE_REP"/>
+  </Match>
+
+  <!--
+    CDI バッキングビーン（@ViewScoped / @SessionScoped）の SE_BAD_FIELD 抑制。
+    Serializable バッキングビーンに @Inject される CDI Proxy は Serializable を実装しないが、
+    コンテナがパッシベーション管理するため false positive。
+  -->
+  <Match>
+    <Or>
+      <Package name="~jp\.mufg\.it\.rcb\.adapter\.in\.web"/>
+      <Class name="jp.mufg.it.rcb.userinfo.context.UserInfoContext"/>
+    </Or>
+    <Bug pattern="SE_BAD_FIELD"/>
+  </Match>
+
+  <!--
+    JSF バッキングビーン / CDI Bean 注入の EI_EXPOSE_REP / EI_EXPOSE_REP2 抑制。
+    Lombok @Getter/@Setter による内部参照露出は @ViewScoped 内の本質的パターン。
+    application.service は CDI コンテナが @SessionScoped UserInfoContext をプロキシ注入する
+    ため、コンストラクタが参照を保持するのは設計上不可避。
+  -->
+  <Match>
+    <Or>
+      <Package name="~jp\.mufg\.it\.rcb\.adapter\.in\.web"/>
+      <Package name="~jp\.mufg\.it\.rcb\.application\.service"/>
+      <Class name="jp.mufg.it.rcb.userinfo.context.UserInfoContext"/>
+    </Or>
+    <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+  </Match>
+
+  <!--
+    log 呼び出しの CRLF_INJECTION_LOGS 抑制。
+    第 2 引数は MessageId（内部定数）でパラメタは配列形式に統一しているため、構造的に CRLF 混入は発生しない。
+  -->
+  <Match>
+    <Or>
+      <Package name="~jp\.mufg\.it\.rcb\.adapter\.in\.web"/>
+      <Package name="~jp\.mufg\.it\.rcb\.application\.service"/>
+      <Class name="jp.mufg.it.rcb.shared.web.AccessLogFilter"/>
+    </Or>
+    <Bug pattern="CRLF_INJECTION_LOGS"/>
+  </Match>
+
+  <!--
+    log.formatter は JUL Formatter として Throwable のスタックトレースを文字列化する責務を持つ。
+    INFORMATION_EXPOSURE_THROUGH_AN_ERROR_MESSAGE はサーバ応答にスタックトレースを晒すケースに対する警告だが、
+    本パッケージは LogRecord をログ出力に変換する内部実装であり、応答経路には乗らないため false positive。
+  -->
+  <Match>
+    <Package name="~jp\.mufg\.it\.rcb\.log\.formatter"/>
+    <Bug pattern="INFORMATION_EXPOSURE_THROUGH_AN_ERROR_MESSAGE"/>
+  </Match>
+</FindBugsFilter>

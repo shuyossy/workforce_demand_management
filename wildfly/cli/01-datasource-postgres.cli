@@ -1,0 +1,34 @@
+# 開発・本番用 PostgresDS 登録（main プロファイル）。
+# wildfly-maven-plugin の <scripts> から呼ばれる。すべての操作は冪等で、
+# WildFly 管理 API（CLI）経由のため設定は standalone.xml に永続化される。
+#
+# E2E プロファイルとの切替（E2E が H2DS を同 JNDI で登録する）はこの CLI ではなく、
+# WildFly 起動前の offline クリーンアップ (wildfly/cli/00-offline-cleanup.cli を
+# scripts/wildfly-ensure-running.sh から embed-server モードで実行) で吸収する。
+# data-source remove は process-state=reload-required を伴うため CLI 内では同 JNDI の
+# add や driver remove ができず、起動前の standalone.xml レベルで取り除く必要がある。
+
+# PostgreSQL JDBC ドライバが未登録なら登録
+if (outcome != success) of /subsystem=datasources/jdbc-driver=postgresql:read-resource
+  /subsystem=datasources/jdbc-driver=postgresql:add( \
+    driver-name=postgresql, \
+    driver-module-name=org.postgresql, \
+    driver-class-name=org.postgresql.Driver, \
+    driver-xa-datasource-class-name=org.postgresql.xa.PGXADataSource)
+end-if
+
+# PostgresDS が未登録なら作成（環境変数から接続情報を取得）
+if (outcome != success) of /subsystem=datasources/data-source=PostgresDS:read-resource
+  data-source add \
+    --name=PostgresDS \
+    --jndi-name=java:/jdbc/PostgresDS \
+    --driver-name=postgresql \
+    --connection-url=${env.DB_URL} \
+    --user-name=${env.DB_USER} \
+    --password=${env.DB_PASSWORD} \
+    --min-pool-size=2 \
+    --max-pool-size=20 \
+    --validate-on-match=true \
+    --background-validation=true \
+    --background-validation-millis=60000
+end-if

@@ -1,0 +1,2 @@
+# dev-users が List ではなく文字列のため init() で IllegalStateException を投げる想定。
+dev-users: 'broken'

@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+  "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+  "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+<suppressions>
+  <!--
+    社内ライブラリ準拠 IF パッケージは Checkstyle 解析対象外。
+    将来の社内ライブラリ置換時にスタイル差分が発生しないよう、ボイラープレート側のスタイル規則は適用しない。
+    独自実装パッケージ（jp.mufg.it.rcb.config）とプロジェクト本体は対象外。
+  -->
+  <suppress files="[\\/]src[\\/]main[\\/]java[\\/]jp[\\/]mufg[\\/]it[\\/]rcb[\\/]log[\\/]cdi[\\/].*\.java$" checks=".*"/>
+  <suppress files="[\\/]src[\\/]main[\\/]java[\\/]jp[\\/]mufg[\\/]it[\\/]rcb[\\/]exception[\\/].*\.java$" checks=".*"/>
+  <suppress files="[\\/]src[\\/]main[\\/]java[\\/]jp[\\/]mufg[\\/]it[\\/]rcb[\\/]userinfo[\\/]dto[\\/].*\.java$" checks=".*"/>
+</suppressions>

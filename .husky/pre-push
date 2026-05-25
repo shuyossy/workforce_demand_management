@@ -1,0 +1,37 @@
+set -e
+
+echo "[pre-push] ESLint (all) ..."
+npm run lint
+
+echo "[pre-push] Prettier check ..."
+npm run format:check
+
+# PBI #3 時点では npm test はスタブ（echo して exit 0）。PBI #4 で Jakarta EE
+# 用テストフレームワークが入った時点で意味のあるテストが走る。
+echo "[pre-push] npm test (PBI #3 時点はスタブ) ..."
+npm test
+
+echo "[pre-push] npm audit ..."
+npm run audit
+
+echo "[pre-push] [Phase 1/2] Maven -Pfast clean verify (static analysis + unit + integration tests) ..."
+# clean を入れて IDE (VSCode Eclipse JDT-LS) の error recovery stub による
+# target/classes 汚染の影響を排除する。詳細は .vscode/settings.json の
+# java.project.outputPath を参照。
+# with-env.sh で .env (WILDFLY_USER / WILDFLY_PASSWORD / DB_URL 等) を環境に load して
+# Maven プロセスに渡す。これが無いと wildfly-maven-plugin が admin 認証情報を
+# 受け取れず Phase 2 の :execute-commands で SaslException で落ちる。
+bash scripts/with-env.sh ./mvnw -T 1C -Pfast clean verify
+
+# Phase 2: WildFly + H2 + Playwright + JaCoCo merge を統合 hard gate。
+# HUSKY_E2E_SKIP=1 で skip 可能（AI 主導の短サイクル開発を許容）。ただし skip した場合は
+# AI は明示的にユーザに告知すること（CLAUDE.md / AGENTS.md の運用ルールを参照）。
+# push 前の最終確認では Phase 2 を必ず実行する。
+if [ "${HUSKY_E2E_SKIP:-}" = "1" ]; then
+  echo "[pre-push] [Phase 2/2] E2E skipped by HUSKY_E2E_SKIP=1."
+  echo "           NOTE: push 前の最終確認では Phase 2 を必ず実行してください。"
+  exit 0
+fi
+
+echo "[pre-push] [Phase 2/2] Maven -Pe2e verify (WildFly + H2 + Playwright + JaCoCo merge) ..."
+bash scripts/with-env.sh ./mvnw -T 1C -Pe2e verify

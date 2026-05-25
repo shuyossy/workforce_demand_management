@@ -1,0 +1,61 @@
+{
+  "name": "sak-dev-env",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0 <23"
+  },
+  "scripts": {
+    "build": "echo 'Java/WildFly のビルドは ./mvnw clean package を使用してください'",
+    "build:watch": "echo 'Java/WildFly のビルドは ./mvnw clean package を使用してください'",
+    "test": "echo 'Java のテストは ./mvnw test または ./mvnw verify を使用してください'",
+    "test:watch": "echo 'Java のテストは ./mvnw test または ./mvnw verify を使用してください'",
+    "test:coverage": "echo 'カバレッジは ./mvnw verify で JaCoCo レポートが target/site/jacoco/ に生成されます'",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "audit": "npm audit --audit-level=high",
+    "lint:java:checkstyle:blocking": "node scripts/run-checkstyle.mjs --ruleset=blocking",
+    "lint:java:checkstyle:google": "node scripts/run-checkstyle.mjs --ruleset=google",
+    "lint:java:pmd:blocking": "node scripts/run-pmd.mjs --ruleset=blocking",
+    "lint:java:pmd:full": "node scripts/run-pmd.mjs --ruleset=full",
+    "secretlint": "secretlint '**/*'",
+    "prepare": "husky",
+    "postinstall": "node scripts/setup-lint-tools.mjs"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
+    "@eslint/js": "^9.12.0",
+    "@secretlint/secretlint-rule-preset-recommend": "^9.0.0",
+    "eslint": "^9.12.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-security": "^3.0.1",
+    "globals": "^15.11.0",
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.3.3",
+    "secretlint": "^9.0.0"
+  },
+  "lint-staged": {
+    "*.{js,mjs,cjs}": [
+      "prettier --write",
+      "eslint --fix --max-warnings=0"
+    ],
+    "*.java": [
+      "node scripts/run-spotless-staged.mjs",
+      "node scripts/run-checkstyle.mjs --ruleset=blocking",
+      "node scripts/run-checkstyle.mjs --ruleset=google",
+      "node scripts/run-pmd.mjs --ruleset=blocking",
+      "node scripts/run-pmd.mjs --ruleset=full"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "*": [
+      "secretlint"
+    ]
+  }
+}

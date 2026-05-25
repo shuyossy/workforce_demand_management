@@ -1,0 +1,36 @@
+# E2E プロファイル専用 H2 datasource 設定（-Pe2e から呼ばれる）。
+# persistence.xml の jta-data-source=java:/jdbc/PostgresDS を変更しないため、
+# H2 datasource も同じ JNDI 名 java:/jdbc/PostgresDS で登録する。datasource 名のみ
+# H2DS とし、`01-datasource-postgres.cli` で登録される PostgresDS とは独立扱い。
+#
+# 通常デバッグとの切替（PostgresDS が同 JNDI で登録されている状態からの切替）は
+# この CLI ではなく、WildFly 起動前の offline クリーンアップ
+# (wildfly/cli/00-offline-cleanup.cli を scripts/wildfly-ensure-running.sh から
+# embed-server モードで実行) で吸収する。data-source remove は process-state=reload-required
+# を伴うため CLI 内では同 JNDI の add や driver remove ができず、起動前の standalone.xml
+# レベルで取り除く必要がある。
+
+# H2 JDBC ドライバが未登録なら登録（WildFly 同梱の古い H2 と衝突しないよう独自 module 名）
+if (outcome != success) of /subsystem=datasources/jdbc-driver=h2-e2e:read-resource
+  /subsystem=datasources/jdbc-driver=h2-e2e:add( \
+    driver-name=h2-e2e, \
+    driver-module-name=com.h2database.h2.e2e, \
+    driver-class-name=org.h2.Driver, \
+    driver-xa-datasource-class-name=org.h2.jdbcx.JdbcDataSource)
+end-if
+
+# H2DS を JNDI java:/jdbc/PostgresDS で登録（環境変数から接続情報を取得）
+if (outcome != success) of /subsystem=datasources/data-source=H2DS:read-resource
+  data-source add \
+    --name=H2DS \
+    --jndi-name=java:/jdbc/PostgresDS \
+    --driver-name=h2-e2e \
+    --connection-url=${env.DB_URL} \
+    --user-name=${env.DB_USER} \
+    --password=${env.DB_PASSWORD} \
+    --min-pool-size=2 \
+    --max-pool-size=20 \
+    --validate-on-match=true \
+    --background-validation=true \
+    --background-validation-millis=60000
+end-if

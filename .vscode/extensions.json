@@ -1,0 +1,11 @@
+{
+  "recommendations": [
+    "vscjava.vscode-java-pack",
+    "redhat.vscode-xml",
+    "shengchen.vscode-checkstyle",
+    "ms-playwright.playwright",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "tamasfe.even-better-toml"
+  ]
+}

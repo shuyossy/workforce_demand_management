@@ -1,0 +1,6 @@
+# APP_CONTEXT_ROOT を WildFly system property に転写（jboss-web.xml が参照）
+if (outcome != success) of /system-property=APP_CONTEXT_ROOT:read-resource
+  /system-property=APP_CONTEXT_ROOT:add(value=${env.APP_CONTEXT_ROOT})
+else
+  /system-property=APP_CONTEXT_ROOT:write-attribute(name=value, value=${env.APP_CONTEXT_ROOT})
+end-if

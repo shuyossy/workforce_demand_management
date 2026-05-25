@@ -1,0 +1,1286 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<!--
+		Jakarta EE 10 / WildFly 32 向けボイラープレート pom.xml。
+		品質ツール群（Spotless / Checkstyle x2 / PMD / SpotBugs+FindSecBugs / JaCoCo /
+		frontend-maven / site / jxr）と profiles（fast / ci-mr / ci-main /
+		skip-frontend / lint-setup）を含む。
+		プラグインバージョンは `<pluginManagement>` で明示固定。
+	-->
+	<groupId>jp.example</groupId>
+	<artifactId>sak-dev-env</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>war</packaging>
+	<name>sak-dev-env</name>
+	<description>Jakarta EE 系列の AI 主導開発向けボイラープレート</description>
+
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<maven.compiler.release>17</maven.compiler.release>
+		<java.version>17</java.version>
+		<checkstyle.version>10.17.0</checkstyle.version>
+		<pmd.version>7.23.0</pmd.version>
+		<spotbugs.version>4.8.6</spotbugs.version>
+		<find-sec-bugs.version>1.13.0</find-sec-bugs.version>
+		<google-java-format.version>1.22.0</google-java-format.version>
+		<jacoco.version>0.8.12</jacoco.version>
+		<owasp-dc.version>10.0.4</owasp-dc.version>
+		<spotless.version>2.43.0</spotless.version>
+		<frontend-maven-plugin.version>1.15.1</frontend-maven-plugin.version>
+		<node.version>v22.14.0</node.version>
+		<npm.version>10.9.0</npm.version>
+		<!-- Node/npm のダウンロード元。社内ミラー利用時は -Dnode.download.root=... 等で上書き -->
+		<node.download.root>https://nodejs.org/dist/</node.download.root>
+		<npm.download.root>https://registry.npmjs.org/npm/-/</npm.download.root>
+		<!-- mvn site（品質レポート HTML 集約サイト）用 -->
+		<maven-site-plugin.version>3.12.1</maven-site-plugin.version>
+		<maven-project-info-reports-plugin.version>3.6.2</maven-project-info-reports-plugin.version>
+		<maven-surefire-report-plugin.version>3.2.5</maven-surefire-report-plugin.version>
+		<maven-jxr-plugin.version>3.3.2</maven-jxr-plugin.version>
+		<!-- compiler / surefire の明示バージョン（pluginManagement で固定） -->
+		<maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+		<maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
+		<!-- Jakarta EE / WildFly / アプリケーション依存 -->
+		<jakartaee.version>10.0.0</jakartaee.version>
+		<wildfly.version>32.0.1.Final</wildfly.version>
+		<wildfly-maven-plugin.version>5.1.2.Final</wildfly-maven-plugin.version>
+		<hibernate.version>6.4.4.Final</hibernate.version>
+		<primefaces.version>14.0.0</primefaces.version>
+		<lombok.version>1.18.32</lombok.version>
+		<flyway.version>10.10.0</flyway.version>
+		<postgresql.version>42.7.3</postgresql.version>
+		<h2.version>2.2.224</h2.version>
+		<archunit.version>1.3.0</archunit.version>
+		<junit.version>5.10.2</junit.version>
+		<assertj.version>3.25.3</assertj.version>
+		<mockito.version>5.11.0</mockito.version>
+		<snakeyaml.version>2.2</snakeyaml.version>
+		<maven-war-plugin.version>3.4.0</maven-war-plugin.version>
+		<maven-failsafe-plugin.version>3.2.5</maven-failsafe-plugin.version>
+		<flyway-maven-plugin.version>10.10.0</flyway-maven-plugin.version>
+		<!--
+			jacoco.check.skip: 本体 check-layered-coverage を skip するフラグ。
+			既定 false（本体 build で hard gate）。-Pe2e 時は true に上書きされ、
+			e2e プロファイル側の check-layered-coverage-e2e (高閾値・excludes 解除) のみで
+			統合 hard gate を実行する。
+		-->
+		<jacoco.check.skip>false</jacoco.check.skip>
+	</properties>
+
+	<!--
+		dependencyManagement: Jakarta EE 10 BOM を import して、jakarta.* API の
+		version 整合を BOM 側に委ねる。Hibernate / PrimeFaces 等 BOM 外の依存は
+		<dependencies> 側で個別に version を明示する。
+	-->
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>jakarta.platform</groupId>
+				<artifactId>jakarta.jakartaee-bom</artifactId>
+				<version>${jakartaee.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<profiles>
+		<profile>
+			<id>fast</id>
+			<activation><activeByDefault>true</activeByDefault></activation>
+			<!-- 既定動作。OWASP DC は動かさない -->
+		</profile>
+
+		<profile>
+			<id>ci-mr</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.owasp</groupId>
+						<artifactId>dependency-check-maven</artifactId>
+						<version>${owasp-dc.version}</version>
+						<configuration>
+							<failBuildOnCVSS>7</failBuildOnCVSS>
+							<dataDirectory>${project.basedir}/.owasp-dc-data</dataDirectory>
+							<format>ALL</format>
+							<!--
+							  社内プライベートネットワーク環境で利用する場合、NIST NVD への直接アクセスができないため
+							  以下のコメントアウトを参考に社内ミラー / プロキシを設定してください:
+							  <nvdApiServerUrl>https://nvd-mirror.internal.example.com/api/</nvdApiServerUrl>
+							  <nvdDatafeedUrl>https://nvd-mirror.internal.example.com/feed/json/cve/1.1/</nvdDatafeedUrl>
+							  <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+							-->
+						</configuration>
+						<executions>
+							<execution>
+								<phase>verify</phase>
+								<goals><goal>check</goal></goals>
+							</execution>
+						</executions>
+					</plugin>
+					<!--
+						JaCoCo の層別カバレッジ check execution は本体 <build> 側に統合済み（ci-mr では重複定義しない）。
+					-->
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>ci-main</id>
+			<!-- ci-mr と同じ振る舞いを継承。将来のリリース固有ジョブ用に予約 -->
+		</profile>
+
+		<profile>
+			<id>skip-frontend</id>
+			<!--
+				本ボイラープレートは xhtml + 各ファイル個別 JS バインドの構成で、
+				`src/main/frontend` 配下のフロントエンドビルド対象を持たない。
+				Node ダウンロード / npm ci / npm run build を全てスキップする。
+				フロントエンドビルドを導入する場合は activeByDefault を false に戻す。
+			-->
+			<activation><activeByDefault>true</activeByDefault></activation>
+			<properties>
+				<skip.npm>true</skip.npm>
+			</properties>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>com.github.eirslett</groupId>
+						<artifactId>frontend-maven-plugin</artifactId>
+						<configuration>
+							<skip>${skip.npm}</skip>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<!--
+				e2e: WildFly + H2 (file-based, target/h2/ 配下) で Playwright を実行し、
+				WildFly JVM に JaCoCo agent を attach して E2E カバレッジを target/jacoco-e2e.exec
+				として収集する。verify phase で jacoco merge / report / check を E2E 込みで
+				再評価する。
+
+				phase 設計（同 phase 内 plugin 宣言順だけでは effective POM 上の wildfly-maven-plugin と
+				exec-maven-plugin の前後関係を強制できない＝main build 側で先行宣言される
+				wildfly-maven-plugin が effective POM 上で先頭側に来るため、pre-integration-test 同居だと
+				wildfly:execute-commands が WildFly 起動前に走る順序逆転が発生する。よって WildFly 起動と
+				Flyway migrate は package phase へ前倒しして順序を物理 phase 単位で確定させる）:
+				  package phase:
+				    1) maven-war-plugin: war:war で WAR を組み立て
+				    2) exec-maven-plugin (e2e-wildfly-start): WildFly 起動 (E2E_MODE=1, JaCoCo agent attach)
+				    3) flyway-maven-plugin (e2e-flyway-migrate): H2 に V1 + R__dev_seed を migrate
+				  pre-integration-test phase:
+				    4) maven-dependency-plugin (copy-jacoco-agent-e2e): JaCoCo agent + CLI jar を target/jacoco-agent に展開
+				       ※ 厳密には initialize phase 実行のため package より前。便宜上ここで触れる。
+				    5) wildfly-maven-plugin (e2e-wildfly-cli-h2): H2 datasource + system-properties CLI 適用
+				    6) wildfly-maven-plugin (e2e-wildfly-deploy): WAR をデプロイ
+				  integration-test phase:
+				    7) exec-maven-plugin (e2e-playwright-test): tests/e2e 配下で playwright test
+				  post-integration-test phase:
+				    8) exec-maven-plugin (e2e-jacoco-dump): jacococli の dump で target/jacoco-e2e.exec を flush
+				    9) exec-maven-plugin (e2e-wildfly-stop): WildFly 停止（必ず実行）
+				  verify phase:
+				   10) jacoco merge / report / check（excludes を override 解除した上で、unit + IT + E2E を統合）
+
+				H2 ファイルは target/h2/ 配下に配置するため `mvn clean` で削除される（永続化目的ではなく、
+				Maven プロセスと WildFly プロセスの 2 JVM で同一 H2 を共有するための一時ファイル）。
+				AUTO_SERVER=TRUE を URL に付けて Maven Flyway plugin と WildFly の同時接続を吸収する。
+			-->
+			<id>e2e</id>
+			<properties>
+				<e2e.h2.file.path>${project.build.directory}/h2/app-e2e</e2e.h2.file.path>
+				<e2e.h2.url>jdbc:h2:file:${e2e.h2.file.path};MODE=PostgreSQL;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE</e2e.h2.url>
+				<e2e.h2.user>sa</e2e.h2.user>
+				<!--
+					WildFly `data-source add` の password パラメータは minimum length 1 の
+					バリデーションがあり空文字列を受け付けないため、H2 デフォルトの空パスワードを
+					避けて非空文字列を設定する。H2 は初回接続時にこの (user, password) で
+					ファイルを作成するため、Maven 側 Flyway と WildFly 側 datasource で
+					同一値を共有する必要がある（${e2e.h2.user}:${e2e.h2.password}）。
+				-->
+				<e2e.h2.password>sa</e2e.h2.password>
+				<e2e.jacoco.port>6300</e2e.jacoco.port>
+				<e2e.jacoco.agent.jar>${project.build.directory}/jacoco-agent/jacocoagent.jar</e2e.jacoco.agent.jar>
+				<e2e.jacoco.cli.jar>${project.build.directory}/jacoco-agent/jacococli.jar</e2e.jacoco.cli.jar>
+				<e2e.jacoco.exec>${project.build.directory}/jacoco-e2e.exec</e2e.jacoco.exec>
+				<exec-maven-plugin.version>3.1.0</exec-maven-plugin.version>
+				<!-- 本体 check-layered-coverage は skip し、e2e 側 check-layered-coverage-e2e のみで hard gate -->
+				<jacoco.check.skip>true</jacoco.check.skip>
+			</properties>
+			<build>
+				<plugins>
+					<!-- 1) JaCoCo agent + CLI jar を target/jacoco-agent/ に展開 -->
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-dependency-plugin</artifactId>
+						<version>3.6.1</version>
+						<executions>
+							<execution>
+								<id>copy-jacoco-agent-e2e</id>
+								<phase>initialize</phase>
+								<goals><goal>copy</goal></goals>
+								<configuration>
+									<artifactItems>
+										<artifactItem>
+											<groupId>org.jacoco</groupId>
+											<artifactId>org.jacoco.agent</artifactId>
+											<version>${jacoco.version}</version>
+											<classifier>runtime</classifier>
+											<outputDirectory>${project.build.directory}/jacoco-agent</outputDirectory>
+											<destFileName>jacocoagent.jar</destFileName>
+										</artifactItem>
+										<artifactItem>
+											<groupId>org.jacoco</groupId>
+											<artifactId>org.jacoco.cli</artifactId>
+											<version>${jacoco.version}</version>
+											<classifier>nodeps</classifier>
+											<outputDirectory>${project.build.directory}/jacoco-agent</outputDirectory>
+											<destFileName>jacococli.jar</destFileName>
+										</artifactItem>
+									</artifactItems>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+
+					<!--
+						2) exec-maven-plugin: WildFly start / Playwright / JaCoCo dump / WildFly stop。
+						e2e-wildfly-start は package phase に bind することで、main build 側で先行宣言される
+						wildfly-maven-plugin より前に確実に走るようにする（同一 phase 同居だと effective POM
+						での plugin 順が wildfly → exec となり逆転するため）。
+					-->
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+						<version>${exec-maven-plugin.version}</version>
+						<executions>
+							<execution>
+								<id>e2e-wildfly-start</id>
+								<phase>package</phase>
+								<goals><goal>exec</goal></goals>
+								<configuration>
+									<executable>bash</executable>
+									<arguments>
+										<argument>scripts/wildfly-ensure-running.sh</argument>
+									</arguments>
+									<environmentVariables>
+										<E2E_MODE>1</E2E_MODE>
+										<JACOCO_AGENT_JAR>${e2e.jacoco.agent.jar}</JACOCO_AGENT_JAR>
+										<JACOCO_E2E_EXEC>${e2e.jacoco.exec}</JACOCO_E2E_EXEC>
+										<JACOCO_E2E_PORT>${e2e.jacoco.port}</JACOCO_E2E_PORT>
+										<DB_URL>${e2e.h2.url}</DB_URL>
+										<DB_USER>${e2e.h2.user}</DB_USER>
+										<DB_PASSWORD>${e2e.h2.password}</DB_PASSWORD>
+									</environmentVariables>
+								</configuration>
+							</execution>
+							<execution>
+								<id>e2e-playwright-test</id>
+								<phase>integration-test</phase>
+								<goals><goal>exec</goal></goals>
+								<configuration>
+									<executable>bash</executable>
+									<arguments>
+										<argument>-c</argument>
+										<argument>cd tests/e2e &amp;&amp; npm ci --no-audit --no-fund &amp;&amp; npx playwright install --with-deps chromium &amp;&amp; npx playwright test</argument>
+									</arguments>
+								</configuration>
+							</execution>
+							<execution>
+								<id>e2e-jacoco-dump</id>
+								<phase>post-integration-test</phase>
+								<goals><goal>exec</goal></goals>
+								<configuration>
+									<executable>bash</executable>
+									<arguments>
+										<argument>scripts/jacoco-dump-wait.sh</argument>
+										<argument>${e2e.jacoco.cli.jar}</argument>
+										<argument>${e2e.jacoco.exec}</argument>
+									</arguments>
+									<environmentVariables>
+										<JACOCO_E2E_PORT>${e2e.jacoco.port}</JACOCO_E2E_PORT>
+									</environmentVariables>
+								</configuration>
+							</execution>
+							<execution>
+								<id>e2e-wildfly-stop</id>
+								<phase>post-integration-test</phase>
+								<goals><goal>exec</goal></goals>
+								<configuration>
+									<executable>bash</executable>
+									<arguments>
+										<argument>scripts/wildfly-stop.sh</argument>
+									</arguments>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+
+					<!-- 3) Flyway: H2 (E2E 用) に migrate -->
+					<plugin>
+						<groupId>org.flywaydb</groupId>
+						<artifactId>flyway-maven-plugin</artifactId>
+						<version>${flyway-maven-plugin.version}</version>
+						<!--
+							E2E プロファイルでは Maven 側 Flyway が H2 ファイルに直接 migrate するため、
+							本体側 flyway-maven-plugin の dependencies (PostgreSQL JDBC + flyway-database-postgresql)
+							だけでは driver が足りない。h2 driver を E2E プロファイル側 dependencies に
+							追加する（本体 plugin 側 dependencies と merge される）。
+						-->
+						<dependencies>
+							<dependency>
+								<groupId>com.h2database</groupId>
+								<artifactId>h2</artifactId>
+								<version>${h2.version}</version>
+							</dependency>
+						</dependencies>
+						<executions>
+							<execution>
+								<id>e2e-flyway-migrate</id>
+								<!--
+									package phase に bind することで、wildfly:execute-commands (H2 datasource 登録)
+									より前に H2 ファイル + schema を確実に用意する（pre-integration-test 同居だと
+									effective POM の plugin 順で wildfly が先に走るリスクが残るため）。
+								-->
+								<phase>package</phase>
+								<goals><goal>migrate</goal></goals>
+								<configuration>
+									<url>${e2e.h2.url}</url>
+									<user>${e2e.h2.user}</user>
+									<password>${e2e.h2.password}</password>
+									<locations>
+										<location>filesystem:src/main/resources/db/migration</location>
+									</locations>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+
+					<!-- 4) WildFly: H2 datasource CLI 適用 → WAR deploy -->
+					<plugin>
+						<groupId>org.wildfly.plugins</groupId>
+						<artifactId>wildfly-maven-plugin</artifactId>
+						<version>${wildfly-maven-plugin.version}</version>
+						<executions>
+							<execution>
+								<id>e2e-wildfly-cli-h2</id>
+								<phase>pre-integration-test</phase>
+								<goals><goal>execute-commands</goal></goals>
+								<configuration>
+									<!--
+										combine.self="override" で本体側の <scripts>（PG 用 CLI）を解除し、
+										E2E プロファイルでは H2 用 CLI のみを実行する。
+										未指定だと親側 PG CLI と当方 H2 CLI が二重に merge され、
+										02-04 が重複適用されるため明示的に override する。
+									-->
+									<scripts combine.self="override">
+										<script>wildfly/cli/01-datasource-h2.cli</script>
+										<script>wildfly/cli/02-system-properties.cli</script>
+										<script>wildfly/cli/03-logging.cli</script>
+										<script>wildfly/cli/04-proxy-forwarding.cli</script>
+									</scripts>
+								</configuration>
+							</execution>
+							<execution>
+								<id>e2e-wildfly-deploy</id>
+								<phase>pre-integration-test</phase>
+								<goals><goal>deploy</goal></goals>
+							</execution>
+						</executions>
+					</plugin>
+
+					<!--
+						5) JaCoCo: plugin-level の excludes を再宣言し、社内ライブラリ準拠 IF パッケージは
+						-Pe2e でも対象外を維持。コンテナ依存クラス（Servlet Filter 等）は記載せず計測対象に戻す。
+						merge-coverage execution を同 id で上書きして jacoco-e2e.exec を統合対象に加える。
+					-->
+					<plugin>
+						<groupId>org.jacoco</groupId>
+						<artifactId>jacoco-maven-plugin</artifactId>
+						<version>${jacoco.version}</version>
+						<configuration>
+							<!--
+								combine.self="override" で本体側の excludes を再宣言。社内ライブラリ準拠 IF
+								パッケージは -Pe2e でも対象外を維持。クラス単位例外（コンテナ依存）は記載せず、
+								E2E 経路で計測対象に戻す。-Pe2e でも到達不能と判明したクラスはここに追加し、
+								ADR-004 例外台帳の「-Pe2e でも除外」節を更新すること。
+							-->
+							<excludes combine.self="override">
+								<exclude>jp/mufg/it/rcb/config/**/*.class</exclude>
+								<exclude>jp/mufg/it/rcb/log/cdi/**/*.class</exclude>
+								<exclude>jp/mufg/it/rcb/log/formatter/**/*.class</exclude>
+								<exclude>jp/mufg/it/rcb/exception/**/*.class</exclude>
+								<exclude>jp/mufg/it/rcb/userinfo/**/*.class</exclude>
+							</excludes>
+						</configuration>
+						<executions>
+							<execution>
+								<id>merge-coverage</id>
+								<phase>verify</phase>
+								<goals><goal>merge</goal></goals>
+								<configuration>
+									<fileSets>
+										<fileSet>
+											<directory>${project.build.directory}</directory>
+											<includes>
+												<include>jacoco.exec</include>
+												<include>jacoco-it.exec</include>
+												<include>jacoco-e2e.exec</include>
+											</includes>
+										</fileSet>
+									</fileSets>
+									<destFile>${project.build.directory}/jacoco-merged.exec</destFile>
+								</configuration>
+							</execution>
+							<!--
+								check-coverage-e2e: E2E カバレッジを統合した上で LINE/BRANCH 95% を hard gate。
+								クラス単位例外台帳は ADR-004 を参照。-Pe2e でも到達不能なクラスは
+								-Pe2e profile の plugin <configuration>/<excludes> に追加し、台帳を更新すること。
+							-->
+							<execution>
+								<id>check-coverage-e2e</id>
+								<phase>verify</phase>
+								<goals><goal>check</goal></goals>
+								<configuration>
+									<dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+									<rules>
+										<!--
+											-Pe2e: BUNDLE 全体集計で LINE/BRANCH 95%。
+											クラス単位の例外を追加するときは ADR-004 の例外台帳に必ず追記すること。
+										-->
+										<rule>
+											<element>BUNDLE</element>
+											<limits>
+												<limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.95</minimum></limit>
+												<limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.95</minimum></limit>
+											</limits>
+										</rule>
+									</rules>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+
+		<profile>
+			<id>lint-setup</id>
+			<dependencies>
+				<!-- Checkstyle / PMD は Maven Central に shaded jar が配布されていないため、
+				     profile scope で宣言し、copy-dependencies で transitive 込み配置する -->
+				<dependency>
+					<groupId>com.puppycrawl.tools</groupId>
+					<artifactId>checkstyle</artifactId>
+					<version>${checkstyle.version}</version>
+				</dependency>
+				<dependency>
+					<groupId>net.sourceforge.pmd</groupId>
+					<artifactId>pmd-cli</artifactId>
+					<version>${pmd.version}</version>
+				</dependency>
+				<dependency>
+					<groupId>net.sourceforge.pmd</groupId>
+					<artifactId>pmd-java</artifactId>
+					<version>${pmd.version}</version>
+				</dependency>
+			</dependencies>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-dependency-plugin</artifactId>
+						<version>3.6.1</version>
+						<executions>
+							<!-- google-java-format は all-deps classifier が実在する本物の shaded jar なので単独 copy -->
+							<execution>
+								<id>copy-google-java-format</id>
+								<phase>initialize</phase>
+								<goals><goal>copy</goal></goals>
+								<configuration>
+									<artifactItems>
+										<artifactItem>
+											<groupId>com.google.googlejavaformat</groupId>
+											<artifactId>google-java-format</artifactId>
+											<version>${google-java-format.version}</version>
+											<classifier>all-deps</classifier>
+											<outputDirectory>${project.basedir}/.lint-tools</outputDirectory>
+											<destFileName>google-java-format.jar</destFileName>
+										</artifactItem>
+									</artifactItems>
+								</configuration>
+							</execution>
+							<!-- Checkstyle と PMD は transitive deps 込みでライブラリ群として配置 -->
+							<execution>
+								<id>copy-lint-lib</id>
+								<phase>initialize</phase>
+								<goals><goal>copy-dependencies</goal></goals>
+								<configuration>
+									<outputDirectory>${project.basedir}/.lint-tools/lib</outputDirectory>
+									<includeScope>runtime</includeScope>
+									<!-- profile で宣言した checkstyle / pmd-cli / pmd-java + transitive を同一ディレクトリへ -->
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
+	<!--
+		dependencies: Jakarta EE / WildFly 向けアプリケーション依存一式。
+		Jakarta EE 本体は WildFly が提供するので scope=provided。Lombok は build-time のみ、
+		PostgreSQL JDBC は WildFly module 経由で提供するため provided。
+	-->
+	<dependencies>
+		<!-- Jakarta EE platform (provided by WildFly) -->
+		<dependency>
+			<groupId>jakarta.platform</groupId>
+			<artifactId>jakarta.jakartaee-api</artifactId>
+			<version>${jakartaee.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- PrimeFaces (Jakarta classifier: jakarta namespace 用) -->
+		<dependency>
+			<groupId>org.primefaces</groupId>
+			<artifactId>primefaces</artifactId>
+			<version>${primefaces.version}</version>
+			<classifier>jakarta</classifier>
+		</dependency>
+
+		<!--
+			MicroProfile Config API。Jakarta EE 10 BOM には含まれないが、
+			WildFly 32 は wildfly-microprofile-config-smallrye で実装を同梱しているため
+			scope=provided として宣言する。AppConfig などで @ConfigProperty を利用するために必要。
+		-->
+		<dependency>
+			<groupId>org.eclipse.microprofile.config</groupId>
+			<artifactId>microprofile-config-api</artifactId>
+			<version>3.1</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- Lombok（build-time のみ。runtime には残らない） -->
+		<dependency>
+			<groupId>org.projectlombok</groupId>
+			<artifactId>lombok</artifactId>
+			<version>${lombok.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- YAML（dev-users.yml の読み込み用） -->
+		<dependency>
+			<groupId>org.yaml</groupId>
+			<artifactId>snakeyaml</artifactId>
+			<version>${snakeyaml.version}</version>
+		</dependency>
+
+		<!--
+			jboss-logging: WildFly 本体が org.jboss.logging.MDC を提供しているため、
+			コンパイル時のみ参照する provided 依存として宣言する（実行時は WildFly が提供）。
+			AccessLogFilter で requestId / empNum を MDC に注入してアクセスログに紐付けるために必要。
+		-->
+		<dependency>
+			<groupId>org.jboss.logging</groupId>
+			<artifactId>jboss-logging</artifactId>
+			<version>3.5.0.Final</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- PostgreSQL driver（本番は WildFly module から提供される） -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<version>${postgresql.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!--
+			社内ライブラリ準拠 IF パッケージは src/main/java 配下に配置（変更禁止）。
+			社内ライブラリ置換時にパッケージごと差し替える前提。詳細は AGENTS.md 参照。
+		-->
+
+		<!-- Test scope -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.assertj</groupId>
+			<artifactId>assertj-core</artifactId>
+			<version>${assertj.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<version>${mockito.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit-junit5</artifactId>
+			<version>${archunit.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<version>${h2.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.hibernate.orm</groupId>
+			<artifactId>hibernate-core</artifactId>
+			<version>${hibernate.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>jakarta.el</groupId>
+			<artifactId>jakarta.el-api</artifactId>
+			<version>5.0.1</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish</groupId>
+			<artifactId>jakarta.el</artifactId>
+			<version>5.0.0-M1</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.hibernate.validator</groupId>
+			<artifactId>hibernate-validator</artifactId>
+			<version>8.0.1.Final</version>
+			<scope>test</scope>
+		</dependency>
+		<!--
+			Yasson (Eclipse の JSON-B 実装). Hibernate 6.4 系は classpath に
+			jakarta.json.bind-api を見つけると JakartaJsonIntegration の static initializer で
+			JSON-B 実装を探しに行くため、jakartaee-bom 由来の JSON-B API があるテスト環境では
+			Yasson が無いと EntityManagerFactory ブートストラップで ClassNotFoundException が出る。
+			本サンプルでは JSON カラムを使わないが、JPA bootstrap を成立させるためにテスト
+			スコープで導入する。本番 WildFly は実装込みで JSON-B を同梱しているため不要。
+		-->
+		<dependency>
+			<groupId>org.eclipse</groupId>
+			<artifactId>yasson</artifactId>
+			<version>3.0.3</version>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<!--
+				Maven 標準プラグイン群（compiler / surefire / war / failsafe）。
+				単一モジュール構成のため pluginManagement は使わず、定義は本セクションに一本化する。
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>${maven-compiler-plugin.version}</version>
+				<configuration>
+					<release>${maven.compiler.release}</release>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<version>${maven-surefire-plugin.version}</version>
+			</plugin>
+			<!--
+				maven-war-plugin: packaging=war の WAR ビルドに利用。
+				failOnMissingWebXml=false により web.xml 不在でも fail させない（Servlet 3.0+ の慣行）。
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-war-plugin</artifactId>
+				<version>${maven-war-plugin.version}</version>
+				<configuration>
+					<failOnMissingWebXml>false</failOnMissingWebXml>
+					<webResources>
+						<resource>
+							<directory>${project.basedir}/src/main/webapp</directory>
+						</resource>
+					</webResources>
+				</configuration>
+			</plugin>
+			<!--
+				maven-failsafe-plugin: *IT.java を結合テストとして integration-test / verify フェーズで実行。
+				単体テスト（*Test.java）の surefire と分離して、E2E や DB 接続を必要とするテストを切り分ける。
+				argLine は jacoco-maven-plugin の prepare-agent-integration が設定する failsafeArgLine
+				プロパティ経由で JaCoCo agent を Failsafe JVM にも適用する。
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-failsafe-plugin</artifactId>
+				<version>${maven-failsafe-plugin.version}</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>integration-test</goal>
+							<goal>verify</goal>
+						</goals>
+					</execution>
+				</executions>
+				<configuration>
+					<includes>
+						<include>**/*IT.java</include>
+					</includes>
+					<argLine>${failsafeArgLine}</argLine>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>com.diffplug.spotless</groupId>
+				<artifactId>spotless-maven-plugin</artifactId>
+				<version>${spotless.version}</version>
+				<configuration>
+					<java>
+						<googleJavaFormat>
+							<version>${google-java-format.version}</version>
+						</googleJavaFormat>
+						<removeUnusedImports/>
+						<trimTrailingWhitespace/>
+						<endWithNewline/>
+					</java>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>validate</phase>
+						<goals><goal>check</goal></goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>3.3.1</version>
+				<dependencies>
+					<dependency>
+						<groupId>com.puppycrawl.tools</groupId>
+						<artifactId>checkstyle</artifactId>
+						<version>${checkstyle.version}</version>
+					</dependency>
+				</dependencies>
+				<!--
+					Checkstyle は 2 本立ての execution で動作させる。
+					* checkstyle-google: google_checks.xml 逐語コピー + Checker 直下 severity を
+					  error 化した 1 行パッチを適用した hard gate。Google Java Style 全規則違反を
+					  build / commit で停止させる。
+					* checkstyle-blocking: Google の網羅では拾えないプロジェクト独自の致命パターン
+					  集合を hard gate として実行。Checker 直下 severity="error"。
+					どちらも pre-commit / pre-push / CI で同一 ruleset を実行（pre-commit は差分対象、
+					pre-push / CI は全体対象）。詳細は rules/README.md を参照。
+				-->
+				<executions>
+					<execution>
+						<id>checkstyle-google</id>
+						<phase>verify</phase>
+						<goals><goal>check</goal></goals>
+						<configuration>
+							<configLocation>rules/checkstyle/checkstyle-google.xml</configLocation>
+							<!--
+								google_checks.xml が参照する以下の独自プロパティに suppressions ファイルを渡す。
+								maven-checkstyle-plugin 標準の <suppressionsLocation> は checkstyle.suppressions.file
+								を渡すが、google_checks.xml は org.checkstyle.google.suppressionfilter.config
+								プロパティを読むため一致しない。
+							-->
+							<propertyExpansion>org.checkstyle.google.suppressionfilter.config=rules/checkstyle/suppressions.xml</propertyExpansion>
+							<consoleOutput>true</consoleOutput>
+							<failsOnError>true</failsOnError>
+							<linkXRef>false</linkXRef>
+						</configuration>
+					</execution>
+					<execution>
+						<id>checkstyle-blocking</id>
+						<phase>verify</phase>
+						<goals><goal>check</goal></goals>
+						<configuration>
+							<configLocation>rules/checkstyle/checkstyle-blocking.xml</configLocation>
+							<consoleOutput>true</consoleOutput>
+							<failsOnError>true</failsOnError>
+							<linkXRef>false</linkXRef>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-pmd-plugin</artifactId>
+				<version>3.22.0</version>
+				<!--
+					maven-pmd-plugin 3.22.0 はデフォルトで PMD 7.0.0 を同梱するが、
+					pre-commit / CLI 側は ${pmd.version} (= 7.23.0) を使うため、
+					Maven plugin もここで明示的にバージョンを揃える
+					（古い PMD には rule property override の不具合などがあり実害がある）。
+				-->
+				<dependencies>
+					<dependency>
+						<groupId>net.sourceforge.pmd</groupId>
+						<artifactId>pmd-core</artifactId>
+						<version>${pmd.version}</version>
+					</dependency>
+					<dependency>
+						<groupId>net.sourceforge.pmd</groupId>
+						<artifactId>pmd-java</artifactId>
+						<version>${pmd.version}</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<rulesets>
+						<ruleset>rules/pmd/ruleset.xml</ruleset>
+					</rulesets>
+					<failOnViolation>true</failOnViolation>
+					<printFailingErrors>true</printFailingErrors>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>verify</phase>
+						<goals><goal>check</goal></goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>com.github.spotbugs</groupId>
+				<artifactId>spotbugs-maven-plugin</artifactId>
+				<version>4.8.6.2</version>
+				<configuration>
+					<effort>Max</effort>
+					<threshold>Low</threshold>
+					<xmlOutput>true</xmlOutput>
+					<excludeFilterFile>rules/spotbugs/exclude.xml</excludeFilterFile>
+					<plugins>
+						<plugin>
+							<groupId>com.h3xstream.findsecbugs</groupId>
+							<artifactId>findsecbugs-plugin</artifactId>
+							<version>${find-sec-bugs.version}</version>
+						</plugin>
+					</plugins>
+				</configuration>
+				<executions>
+					<execution>
+						<phase>verify</phase>
+						<goals><goal>check</goal></goals>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.version}</version>
+				<!--
+					plugin-level <excludes>: 計装フェーズで除外することでカバレッジ計算と check の
+					両方から外れる。指定はクラス path 形式（FQCN ではなくスラッシュ区切り）。
+					除外の根拠は ADR-004 のクラス単位例外台帳と社内ライブラリ準拠 IF パッケージ一覧で
+					一元管理する。追加・削除する場合は ADR-004 を必ず更新すること。
+				-->
+				<configuration>
+					<excludes>
+						<!-- 社内ライブラリ準拠 IF パッケージ（変更不可・将来差し替え予定）。
+						     常にカバレッジ対象外。HTML レポートにも出さない。 -->
+						<exclude>jp/mufg/it/rcb/config/**/*.class</exclude>
+						<exclude>jp/mufg/it/rcb/log/cdi/**/*.class</exclude>
+						<exclude>jp/mufg/it/rcb/log/formatter/**/*.class</exclude>
+						<exclude>jp/mufg/it/rcb/exception/**/*.class</exclude>
+						<exclude>jp/mufg/it/rcb/userinfo/**/*.class</exclude>
+
+						<!-- クラス単位例外（コンテナ依存）。本体では計測不可、-Pe2e で復活させて計測する。
+						     追加・削除する場合は ADR-004 の例外台帳を必ず更新すること。 -->
+						<exclude>jp/mufg/it/rcb/shared/web/AuthenticationFilter.class</exclude>
+						<exclude>jp/mufg/it/rcb/shared/web/AccessLogFilter.class</exclude>
+					</excludes>
+				</configuration>
+				<executions>
+					<!--
+						prepare-agent: Surefire (unit テスト) 用に argLine プロパティを生成。
+						target/jacoco.exec に通過行情報を書き出す（既存挙動の明文化）。
+					-->
+					<execution>
+						<id>prepare-agent</id>
+						<phase>initialize</phase>
+						<goals><goal>prepare-agent</goal></goals>
+					</execution>
+					<!--
+						prepare-agent-integration: Failsafe (integration テスト) 用に failsafeArgLine
+						プロパティを生成し、Failsafe の argLine 設定経由で JaCoCo agent を IT JVM にも適用する。
+						target/jacoco-it.exec に IT 通過行情報を書き出す。
+					-->
+					<execution>
+						<id>prepare-agent-integration</id>
+						<phase>pre-integration-test</phase>
+						<goals><goal>prepare-agent-integration</goal></goals>
+						<configuration>
+							<destFile>${project.build.directory}/jacoco-it.exec</destFile>
+							<propertyName>failsafeArgLine</propertyName>
+						</configuration>
+					</execution>
+					<!--
+						merge-coverage: unit (jacoco.exec) と IT (jacoco-it.exec) を結合し
+						jacoco-merged.exec を生成。後続の report / check 双方が merged を参照する。
+					-->
+					<execution>
+						<id>merge-coverage</id>
+						<phase>verify</phase>
+						<goals><goal>merge</goal></goals>
+						<configuration>
+							<fileSets>
+								<fileSet>
+									<directory>${project.build.directory}</directory>
+									<includes>
+										<include>jacoco.exec</include>
+										<include>jacoco-it.exec</include>
+									</includes>
+								</fileSet>
+							</fileSets>
+							<destFile>${project.build.directory}/jacoco-merged.exec</destFile>
+						</configuration>
+					</execution>
+					<!--
+						report: merged exec から HTML レポートを生成。
+						verify phase で merge より後に走るため、宣言順を merge → report → check に保つ。
+					-->
+					<execution>
+						<id>report</id>
+						<phase>verify</phase>
+						<goals><goal>report</goal></goals>
+						<configuration>
+							<dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+							<outputDirectory>${project.build.directory}/site/jacoco</outputDirectory>
+						</configuration>
+					</execution>
+					<!--
+						check-coverage: アプリ側パッケージのカバレッジ閾値を verify で hard gate。
+						詳細は docs/docs/05-technical-design.md §8.4 と
+						docs/docs/03-adrs/ADR-004-coverage-by-layer.md を参照。
+						2 系統で運用:
+						  * 本体 (-Pfast / -Pci-mr / -Pci-main): 単体 + 結合テストで LINE/BRANCH 85%。
+						  * -Pe2e: E2E カバレッジを統合した上で LINE/BRANCH 95%（-Pe2e 側の
+						    check-coverage-e2e execution で評価）。
+						社内ライブラリ準拠 IF パッケージとクラス単位例外は plugin-level <excludes>
+						で計装段階から除外する。例外台帳は ADR-004。
+					-->
+					<execution>
+						<id>check-coverage</id>
+						<phase>verify</phase>
+						<goals><goal>check</goal></goals>
+						<configuration>
+							<!--
+								本体閾値 check。-Pe2e 時は jacoco.check.skip=true でこちらを skip し、
+								e2e プロファイル側の check-coverage-e2e (95% 閾値・excludes 解除) で
+								統合 hard gate を実行する。
+							-->
+							<skip>${jacoco.check.skip}</skip>
+							<dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+							<rules>
+								<!--
+									本体（-Pfast / -Pci-mr / -Pci-main）: BUNDLE 全体集計で LINE/BRANCH 85%。
+									plugin-level <excludes> 対象クラス（社内ライブラリ準拠 IF パッケージ +
+									クラス単位例外）は計装段階で除外されているため、この集計には含まれない。
+									クラス単位の例外を追加するときは ADR-004 の例外台帳に必ず追記すること。
+								-->
+								<rule>
+									<element>BUNDLE</element>
+									<limits>
+										<limit><counter>LINE</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit>
+										<limit><counter>BRANCH</counter><value>COVEREDRATIO</value><minimum>0.85</minimum></limit>
+									</limits>
+								</rule>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<plugin>
+				<groupId>com.github.eirslett</groupId>
+				<artifactId>frontend-maven-plugin</artifactId>
+				<version>${frontend-maven-plugin.version}</version>
+				<configuration>
+					<installDirectory>target</installDirectory>
+					<workingDirectory>.</workingDirectory>
+				</configuration>
+				<executions>
+					<execution>
+						<id>install node and npm</id>
+						<goals><goal>install-node-and-npm</goal></goals>
+						<phase>generate-resources</phase>
+						<configuration>
+							<nodeVersion>${node.version}</nodeVersion>
+							<npmVersion>${npm.version}</npmVersion>
+							<!-- 社内ミラー利用時は -Dnode.download.root=... で上書き可能 -->
+							<nodeDownloadRoot>${node.download.root}</nodeDownloadRoot>
+							<npmDownloadRoot>${npm.download.root}</npmDownloadRoot>
+						</configuration>
+					</execution>
+					<execution>
+						<id>npm ci</id>
+						<goals><goal>npm</goal></goals>
+						<phase>generate-resources</phase>
+						<configuration>
+							<arguments>ci</arguments>
+						</configuration>
+					</execution>
+					<execution>
+						<id>npm run build</id>
+						<goals><goal>npm</goal></goals>
+						<phase>process-resources</phase>
+						<configuration>
+							<arguments>run build</arguments>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!--
+				maven-site-plugin: ./mvnw site で Checkstyle / PMD / SpotBugs / JUnit(Surefire) /
+				JaCoCo のレポートを target/site/ に HTML 集約する。jakartaEE ブランチでは
+				`<parent>` を外したため site plugin の暗黙バージョン継承が無くなり、
+				ここで 3.12.1（site 3.x 系の最新安定）に明示する。site plugin 4.x は
+				Velocity テンプレート撤廃等で互換性が壊れているため採用しない。
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-site-plugin</artifactId>
+				<version>${maven-site-plugin.version}</version>
+				<configuration>
+					<locales>ja</locales>
+					<inputEncoding>UTF-8</inputEncoding>
+					<outputEncoding>UTF-8</outputEncoding>
+				</configuration>
+			</plugin>
+
+			<!--
+				maven-jxr-plugin: Checkstyle / PMD が linkXRef=true でソース相互参照を貼るために必要。
+				default lifecycle には何も bind しないが、site 実行時に参照されるため <build> に置く。
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jxr-plugin</artifactId>
+				<version>${maven-jxr-plugin.version}</version>
+			</plugin>
+
+			<!--
+				wildfly-maven-plugin: 開発時のデプロイ / CLI 適用 / 管理 API 操作を担う。
+				接続情報は .env から WILDFLY_HOST 等の環境変数として渡される（scripts/with-env.sh 経由、
+				VSCode tasks.json の wildfly:apply-config / wildfly:redeploy ターゲットからも同経路で起動）。
+				wildfly:execute-commands で下の <scripts> を上から順に WildFly 管理 API (port 9990) へ
+				投げる。CLI はすべて冪等（read-resource → success なら skip / failed なら add）で
+				書かれており、開発中に何度再実行しても問題ない。
+
+				<scripts> の選択:
+				  - main プロファイル (この設定): PostgresDS を登録する 01-datasource-postgres.cli を使う。
+				    冒頭で H2DS / h2-e2e driver の残骸を remove するため、-Pe2e 実行直後でも自動で
+				    PostgreSQL 構成に戻る（E2E ↔ デバッグ往復対応）。
+				  - e2e プロファイル: e2e profile 側で <scripts combine.self="override"> により
+				    01-datasource-h2.cli (H2DS を JNDI java:/jdbc/PostgresDS で登録) に差し替えられる。
+				    02-04 は両プロファイル共通。
+			-->
+			<plugin>
+				<groupId>org.wildfly.plugins</groupId>
+				<artifactId>wildfly-maven-plugin</artifactId>
+				<version>${wildfly-maven-plugin.version}</version>
+				<configuration>
+					<hostname>${env.WILDFLY_HOST}</hostname>
+					<port>${env.WILDFLY_MGMT_PORT}</port>
+					<username>${env.WILDFLY_USER}</username>
+					<password>${env.WILDFLY_PASSWORD}</password>
+					<scripts>
+						<script>wildfly/cli/01-datasource-postgres.cli</script>
+						<script>wildfly/cli/02-system-properties.cli</script>
+						<script>wildfly/cli/03-logging.cli</script>
+						<script>wildfly/cli/04-proxy-forwarding.cli</script>
+					</scripts>
+				</configuration>
+			</plugin>
+
+			<!--
+				flyway-maven-plugin: 開発時の DB マイグレーション（flyway:migrate / flyway:info / flyway:clean）を担う。
+				Flyway 10 系以降は DB ベンダー別の対応 jar（flyway-database-postgresql）を plugin の
+				dependencies に明示する必要がある。接続情報は .env 経由で渡される。
+			-->
+			<plugin>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-maven-plugin</artifactId>
+				<version>${flyway-maven-plugin.version}</version>
+				<dependencies>
+					<dependency>
+						<groupId>org.postgresql</groupId>
+						<artifactId>postgresql</artifactId>
+						<version>${postgresql.version}</version>
+					</dependency>
+					<dependency>
+						<groupId>org.flywaydb</groupId>
+						<artifactId>flyway-database-postgresql</artifactId>
+						<version>${flyway.version}</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<url>${env.DB_URL}</url>
+					<user>${env.DB_USER}</user>
+					<password>${env.DB_PASSWORD}</password>
+					<locations>
+						<location>filesystem:src/main/resources/db/migration</location>
+					</locations>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+	<!--
+		<reporting>: ./mvnw site で生成する HTML レポートの集約。
+		build 側のチェック（fail 条件付き）とは独立に、違反があっても必ずサイトを描画するよう
+		report plugin 側では failOnViolation 相当の設定を入れない。
+		詳細な方針は rules/README.md § "レポート出力 (mvn site)" を参照。
+	-->
+	<reporting>
+		<plugins>
+			<!-- プロジェクト情報（site のランディングとサイドバー構築に必要） -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-project-info-reports-plugin</artifactId>
+				<version>${maven-project-info-reports-plugin.version}</version>
+				<reportSets>
+					<reportSet>
+						<reports>
+							<report>index</report>
+							<report>summary</report>
+							<report>plugins</report>
+						</reports>
+					</reportSet>
+				</reportSets>
+			</plugin>
+
+			<!-- ソース相互参照。Checkstyle / PMD の HTML から該当行にリンクするため -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jxr-plugin</artifactId>
+				<version>${maven-jxr-plugin.version}</version>
+			</plugin>
+
+			<!--
+				JUnit テスト結果レポート。
+				report-only goal で target/surefire-reports/*.xml のみを描画する
+				（report goal は test を再実行してしまうため避ける）。
+				そのため ./mvnw site 単独では空になる。必ず verify site か test site で連結する。
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-report-plugin</artifactId>
+				<version>${maven-surefire-report-plugin.version}</version>
+				<reportSets>
+					<reportSet>
+						<reports>
+							<report>report-only</report>
+						</reports>
+					</reportSet>
+				</reportSets>
+			</plugin>
+
+			<!--
+				Checkstyle: サイトには blocking（プロジェクト独自の致命パターン）のみを掲載する。
+				maven-checkstyle-plugin の checkstyle report goal は出力ファイル名が固定
+				（checkstyle.html）のため複数 reportSet を宣言しても同一ファイルに上書きされ、
+				技術的に 2 ページ化できない。google（google_checks 全体 hard gate）は verify 段階で
+				build 側の checkstyle-google execution が console に出すため、CI ログや
+				ローカル `./mvnw verify` で引き続き参照可能（どちらも hard gate なので
+				CI 通過時点でゼロ違反が保証される）。
+				reporting 側では failOnViolation 的設定は絶対に入れない（違反があっても
+				サイト生成は成功させる必要があるため）。
+			-->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-checkstyle-plugin</artifactId>
+				<version>3.3.1</version>
+				<configuration>
+					<configLocation>rules/checkstyle/checkstyle-blocking.xml</configLocation>
+					<linkXRef>true</linkXRef>
+				</configuration>
+				<reportSets>
+					<reportSet>
+						<reports>
+							<report>checkstyle</report>
+						</reports>
+					</reportSet>
+				</reportSets>
+			</plugin>
+
+			<!-- PMD: build 側と同じ ruleset を参照し乖離を防ぐ -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-pmd-plugin</artifactId>
+				<version>3.22.0</version>
+				<configuration>
+					<rulesets>
+						<ruleset>rules/pmd/ruleset.xml</ruleset>
+					</rulesets>
+					<linkXRef>true</linkXRef>
+					<skipEmptyReport>false</skipEmptyReport>
+				</configuration>
+				<reportSets>
+					<reportSet>
+						<reports>
+							<report>pmd</report>
+						</reports>
+					</reportSet>
+				</reportSets>
+			</plugin>
+
+			<!--
+				SpotBugs: build 側と同一 configuration（effort / threshold / excludeFilterFile /
+				FindSecBugs plugin）を重複宣言して挙動をそろえる。verify 済み環境では
+				target/spotbugsXml.xml が存在するため report 生成時に再解析せず XML を再利用する。
+			-->
+			<plugin>
+				<groupId>com.github.spotbugs</groupId>
+				<artifactId>spotbugs-maven-plugin</artifactId>
+				<version>4.8.6.2</version>
+				<configuration>
+					<effort>Max</effort>
+					<threshold>Low</threshold>
+					<xmlOutput>true</xmlOutput>
+					<excludeFilterFile>rules/spotbugs/exclude.xml</excludeFilterFile>
+					<plugins>
+						<plugin>
+							<groupId>com.h3xstream.findsecbugs</groupId>
+							<artifactId>findsecbugs-plugin</artifactId>
+							<version>${find-sec-bugs.version}</version>
+						</plugin>
+					</plugins>
+				</configuration>
+			</plugin>
+
+			<!--
+				JaCoCo: verify phase で生成される merged exec (jacoco-merged.exec) を site に取り込む。
+				build 側 report execution と同じ dataFile / outputDirectory を指定して site と build の出力を揃える。
+			-->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>${jacoco.version}</version>
+				<configuration>
+					<dataFile>${project.build.directory}/jacoco-merged.exec</dataFile>
+				</configuration>
+				<reportSets>
+					<reportSet>
+						<reports>
+							<report>report</report>
+						</reports>
+					</reportSet>
+				</reportSets>
+			</plugin>
+		</plugins>
+	</reporting>
+
+</project>
