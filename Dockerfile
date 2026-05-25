@@ -26,7 +26,7 @@ COPY scripts/docker-entrypoint.sh /opt/jboss/docker-entrypoint.sh
 RUN chmod +x /opt/jboss/docker-entrypoint.sh
 
 # WAR を deployments に配置
-COPY --from=build /app/target/sak-dev-env-*.war /opt/jboss/wildfly/standalone/deployments/sampleapp.war
+COPY --from=build /app/target/sak-dev-env-*.war /opt/jboss/wildfly/standalone/deployments/rcb.war
 
 USER jboss
 

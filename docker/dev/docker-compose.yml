@@ -3,15 +3,15 @@ services:
     image: postgres:16-alpine
     container_name: sak-dev-postgres
     environment:
-      POSTGRES_DB: sampleapp
-      POSTGRES_USER: sampleapp
-      POSTGRES_PASSWORD: sampleapp
+      POSTGRES_DB: rcb
+      POSTGRES_USER: rcb
+      POSTGRES_PASSWORD: rcb
     ports:
       - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U sampleapp']
+      test: ['CMD-SHELL', 'pg_isready -U rcb']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -26,9 +26,9 @@ services:
   #     - '9990:9990' # Management
   #     - '8787:8787' # JVM debug
   #   environment:
-  #     DB_URL: jdbc:postgresql://postgres:5432/sampleapp
-  #     DB_USER: sampleapp
-  #     DB_PASSWORD: sampleapp
+  #     DB_URL: jdbc:postgresql://postgres:5432/rcb
+  #     DB_USER: rcb
+  #     DB_PASSWORD: rcb
   #     APP_CONTEXT_ROOT: /rcb
   #   depends_on:
   #     postgres:

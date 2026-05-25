@@ -15,8 +15,8 @@
 Docker Compose モードを利用する場合はコンテナが自動作成するため不要。ローカル PostgreSQL を利用する場合：
 
 ```bash
-createdb sampleapp
-createuser sampleapp -P  # パスワードを設定
+createdb rcb
+createuser rcb -P  # パスワードを設定
 ```
 
 ## 起動モード比較
@@ -32,21 +32,21 @@ createuser sampleapp -P  # パスワードを設定
 
 主要な変数：
 
-| 変数                    | 用途                             | デフォルト                                   |
-| ----------------------- | -------------------------------- | -------------------------------------------- |
-| `DB_URL`                | JDBC URL                         | `jdbc:postgresql://localhost:5432/sampleapp` |
-| `DB_USER`               | DB ユーザ                        | `sampleapp`                                  |
-| `DB_PASSWORD`           | DB パスワード                    | （無し、必須）                               |
-| `WILDFLY_HOME`          | WildFly インストールパス（任意） | 未設定 → Docker Compose で起動               |
-| `WILDFLY_HOST`          | 管理接続ホスト                   | `localhost`                                  |
-| `WILDFLY_MGMT_PORT`     | management port                  | `9990`                                       |
-| `WILDFLY_DEBUG_PORT`    | JVM debug port                   | `8787`                                       |
-| `WILDFLY_USER`          | 管理ユーザ名                     | `admin`                                      |
-| `WILDFLY_PASSWORD`      | 管理ユーザパスワード             | `admin`                                      |
-| `APP_CONTEXT_ROOT`      | コンテキストルート               | `/rcb`                                       |
-| `APP_AUTH_MODE`         | `DEV_LOGIN` / `HEADER`           | `DEV_LOGIN`                                  |
-| `APP_EXTERNAL_BASE_URL` | 外部URL 絶対指定（メール等）     | 空                                           |
-| `BASE_URL`              | E2E テストの基底 URL             | `http://localhost:8080/rcb`                  |
+| 変数                    | 用途                             | デフォルト                             |
+| ----------------------- | -------------------------------- | -------------------------------------- |
+| `DB_URL`                | JDBC URL                         | `jdbc:postgresql://localhost:5432/rcb` |
+| `DB_USER`               | DB ユーザ                        | `rcb`                                  |
+| `DB_PASSWORD`           | DB パスワード                    | （無し、必須）                         |
+| `WILDFLY_HOME`          | WildFly インストールパス（任意） | 未設定 → Docker Compose で起動         |
+| `WILDFLY_HOST`          | 管理接続ホスト                   | `localhost`                            |
+| `WILDFLY_MGMT_PORT`     | management port                  | `9990`                                 |
+| `WILDFLY_DEBUG_PORT`    | JVM debug port                   | `8787`                                 |
+| `WILDFLY_USER`          | 管理ユーザ名                     | `admin`                                |
+| `WILDFLY_PASSWORD`      | 管理ユーザパスワード             | `admin`                                |
+| `APP_CONTEXT_ROOT`      | コンテキストルート               | `/rcb`                                 |
+| `APP_AUTH_MODE`         | `DEV_LOGIN` / `HEADER`           | `DEV_LOGIN`                            |
+| `APP_EXTERNAL_BASE_URL` | 外部URL 絶対指定（メール等）     | 空                                     |
+| `BASE_URL`              | E2E テストの基底 URL             | `http://localhost:8080/rcb`            |
 
 `.env.example` をコミット、`.env` は `.gitignore`。
 

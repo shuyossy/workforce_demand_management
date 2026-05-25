@@ -17,7 +17,7 @@ FROM quay.io/wildfly/wildfly:32.0.1.Final-jdk17 AS runtime
 USER root
 COPY wildfly/cli/ /opt/jboss/cli/
 RUN /opt/jboss/wildfly/bin/jboss-cli.sh --file=/opt/jboss/cli/01-datasource-postgres.cli || true
-COPY --from=build /app/target/*.war /opt/jboss/wildfly/standalone/deployments/sampleapp.war
+COPY --from=build /app/target/*.war /opt/jboss/wildfly/standalone/deployments/rcb.war
 USER jboss
 EXPOSE 8080 9990
 CMD ["/opt/jboss/wildfly/bin/standalone.sh", "-b", "0.0.0.0", "-bmanagement", "0.0.0.0"]
