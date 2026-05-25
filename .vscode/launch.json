@@ -9,7 +9,7 @@
       "port": 8787,
       "envFile": "${workspaceFolder}/.env",
       "preLaunchTask": "dev:bootstrap-and-tail",
-      "projectName": "sak-dev-env"
+      "projectName": "rcb"
     },
     {
       "type": "java",
@@ -18,7 +18,7 @@
       "hostName": "localhost",
       "port": 8787,
       "envFile": "${workspaceFolder}/.env",
-      "projectName": "sak-dev-env"
+      "projectName": "rcb"
     },
     {
       "type": "node",

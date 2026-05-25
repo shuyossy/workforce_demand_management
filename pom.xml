@@ -10,10 +10,10 @@
 		プラグインバージョンは `<pluginManagement>` で明示固定。
 	-->
 	<groupId>jp.example</groupId>
-	<artifactId>sak-dev-env</artifactId>
+	<artifactId>rcb</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<packaging>war</packaging>
-	<name>sak-dev-env</name>
+	<name>rcb</name>
 	<description>Jakarta EE 系列の AI 主導開発向けボイラープレート</description>
 
 	<properties>

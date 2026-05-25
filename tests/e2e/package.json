@@ -1,5 +1,5 @@
 {
-  "name": "sak-dev-env-e2e",
+  "name": "rcb-e2e",
   "private": true,
   "type": "module",
   "scripts": {

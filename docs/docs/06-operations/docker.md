@@ -35,7 +35,7 @@ CMD ["/opt/jboss/wildfly/bin/standalone.sh", "-b", "0.0.0.0", "-bmanagement", "0
 ## イメージビルド
 
 ```bash
-docker build -t sak-dev-env:latest .
+docker build -t rcb:latest .
 ```
 
 CI（GitLab）では Kaniko か `docker buildx` を使う（既存 `.gitlab-ci.yml` 構成）。

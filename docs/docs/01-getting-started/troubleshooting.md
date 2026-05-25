@@ -27,7 +27,7 @@
 
 ## PrimeFaces 画面の CSS が崩れる
 
-- `target/sak-dev-env-0.0.1-SNAPSHOT.war` を再ビルドしてデプロイ
+- `target/rcb-0.0.1-SNAPSHOT.war` を再ビルドしてデプロイ
 - ブラウザのキャッシュをクリア（Cmd+Shift+R）
 
 ## 外部マシンからアクセスできない
