@@ -1,12 +1,19 @@
 # WildFly 起動前の offline クリーンアップ（embed-server モードで実行）。
 # scripts/wildfly-ensure-running.sh から jboss-cli.sh --file=... で呼ばれる。
 #
-# 役割: 前回のセッション（特に -Pe2e）が standalone.xml に永続化したデータソース
+# 役割1: 前回のセッション（特に -Pe2e）が standalone.xml に永続化したデータソース
 # 定義をすべて取り除き、起動後に 01-datasource-*.cli が冪等にクリーンな再登録を
 # できる状態にする。online CLI では data-source remove が process-state=reload-required
 # を伴うため同 JNDI での再 add や driver remove ができず、E2E ↔ 通常デバッグの切替が
 # 壊れる（WFLYCTL0171 / DuplicateServiceException）。embed-server モードは standalone.xml
 # を直接書き換えるためその制約を受けない。
+#
+# 役割2: 不要な https-listener（8443）を無効化する。本アプリは HTTP 専用で TLS 終端は
+# 前段のリバースプロキシが担う設計（04-proxy-forwarding.cli 参照）のため 8443 は一切
+# 使わないが、標準 standalone.xml のデフォルト定義が起動毎に 8443 をバインドしにいき、
+# 前回 F5 で残存した WildFly と衝突して undertow.listener.https 起動失敗 → WAR デプロイ
+# rollback を引き起こす。online でのリスナー削除は reload-required を伴うため、ここで
+# 起動前に恒久削除する。
 #
 # WildFly 同梱の h2 driver (com.h2database.h2) には触らない（標準同梱品）。
 
@@ -30,6 +37,13 @@ end-if
 # h2-e2e jdbc-driver を取り除く（-Pe2e の 01-datasource-h2.cli が冪等に再 add する）
 if (outcome == success) of /subsystem=datasources/jdbc-driver=h2-e2e:read-resource
   /subsystem=datasources/jdbc-driver=h2-e2e:remove
+end-if
+
+# 不要な https-listener（8443）を取り除く（本アプリは HTTP 専用のため未使用）。
+# socket-binding=https は残すため http-listener の redirect-socket="https" 参照は
+# ダングリングにならない（socket-binding 自体はリスナーが使うまでポートを開かない）。
+if (outcome == success) of /subsystem=undertow/server=default-server/https-listener=https:read-resource
+  /subsystem=undertow/server=default-server/https-listener=https:remove
 end-if
 
 stop-embedded-server
