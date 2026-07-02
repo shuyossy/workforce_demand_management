@@ -43,7 +43,6 @@
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
   "files.exclude": {
-    "**/target": true,
     "**/.idea": true,
     "**/.dev-runtime": true
   },
