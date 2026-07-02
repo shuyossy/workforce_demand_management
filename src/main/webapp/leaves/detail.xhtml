@@ -16,7 +16,7 @@
 
     <h:form id="detailForm" rendered="#{not empty leaveDetailBean.detail}">
       <p:panel header="休暇申請詳細 (ID: #{leaveDetailBean.detail.id})">
-        <p:messages id="detailMessages" />
+        <!-- メッセージ表示はテンプレート main.xhtml の globalMessages に一本化（二重表示防止） -->
         <p:panelGrid columns="2" layout="grid" styleClass="ui-noborder">
           <h:outputText value="申請者:" />
           <h:outputText

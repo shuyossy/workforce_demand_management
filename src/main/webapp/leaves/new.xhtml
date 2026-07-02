@@ -11,8 +11,7 @@
   <ui:define name="content">
     <h:form id="formNew">
       <p:panel header="休暇申請">
-        <p:messages id="formMessages" />
-
+        <!-- メッセージ表示（必須検証・業務エラー）はテンプレート main.xhtml の globalMessages に一本化（二重表示防止） -->
         <div class="form-row">
           <p:outputLabel for="type" value="種別:" />
           <p:selectOneMenu id="type" value="#{leaveFormBean.leaveType}" required="true">

@@ -4,6 +4,19 @@
               xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-facesconfig_4_0.xsd"
               version="4.0">
 
+  <!--
+    JSF ライフサイクル内で発生した例外を一括ハンドリングするカスタム ExceptionHandler を登録する。
+    これにより MSTBusinessException（回復可）は現画面に FacesMessage として表示され、
+    MSTBusinessNonRecoverException（回復不可）や想定外例外は error.xhtml へ遷移する。
+    本登録が無いと JSF は標準ハンドラを使い、業務エラーも web.xml の Throwable error-page 経由で
+    error.xhtml に全画面遷移してしまう（技術設計書 §4 のエラーハンドリング方針参照）。
+  -->
+  <factory>
+    <exception-handler-factory>
+      jp.mufg.it.rcb.exception.handler.FacesExceptionHandlerFactory
+    </exception-handler-factory>
+  </factory>
+
   <application>
     <locale-config>
       <default-locale>ja</default-locale>
