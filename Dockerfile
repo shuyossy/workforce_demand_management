@@ -25,6 +25,11 @@ COPY wildfly/cli/ /opt/jboss/cli/
 COPY scripts/docker-entrypoint.sh /opt/jboss/docker-entrypoint.sh
 RUN chmod +x /opt/jboss/docker-entrypoint.sh
 
+# 標準記述子（web.xml）の ${env.*:default} 置換を build 時に standalone.xml へ焼き込む。
+# boot 時 auto-deploy される rcb.war の web.xml で APP_JSF_PROJECT_STAGE / APP_SESSION_COOKIE_SECURE /
+# APP_SESSION_TIMEOUT_MINUTES を解決させるため（online CLI 経路が無い本番向け、embed-server で永続化）。
+RUN /opt/jboss/wildfly/bin/jboss-cli.sh --file=/opt/jboss/cli/05-ee-descriptor-replacement.cli
+
 # WAR を deployments に配置
 COPY --from=build /app/target/rcb-*.war /opt/jboss/wildfly/standalone/deployments/rcb.war
 

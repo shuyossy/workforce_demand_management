@@ -4,3 +4,13 @@ if (outcome != success) of /system-property=APP_CONTEXT_ROOT:read-resource
 else
   /system-property=APP_CONTEXT_ROOT:write-attribute(name=value, value=${env.APP_CONTEXT_ROOT})
 end-if
+
+# 標準記述子（web.xml）の ${env.*:default} 置換を有効化する。
+# これにより WEB-INF/web.xml の PROJECT_STAGE / session-cookie secure / session-timeout が
+# 環境変数（APP_JSF_PROJECT_STAGE / APP_SESSION_COOKIE_SECURE / APP_SESSION_TIMEOUT_MINUTES）で
+# 切替可能になる（jboss-web.xml の jboss-descriptor 置換に対応する spec-descriptor 側の有効化）。
+# 本属性は restart-required=no-services のため online write が即時反映され、同一 execute-commands
+# セッションの後続 wildfly:deploy が新設定で web.xml を解析する。write-attribute は冪等。
+# Docker（online CLI 経路を持たない boot-time auto-deploy）は本 CLI ではなく Dockerfile の
+# build-time bake（wildfly/cli/05-ee-descriptor-replacement.cli）で同属性を焼き込む。
+/subsystem=ee:write-attribute(name=spec-descriptor-property-replacement, value=true)

@@ -42,6 +42,12 @@ RUN mkdir -p /opt/jboss/wildfly/modules/system/layers/base/com/h2database/h2/e2e
 </module>
 EOF
 
+# 標準記述子（web.xml）の ${env.*:default} 置換を build 時に standalone.xml へ焼き込む
+# （本番 Dockerfile と同一機構。docker compose で本イメージを使う場合の boot-time auto-deploy 向け）。
+# build context はリポジトリルート（docker/dev/docker-compose.yml の build.context 参照）。
+COPY wildfly/cli/05-ee-descriptor-replacement.cli /opt/jboss/cli/05-ee-descriptor-replacement.cli
+RUN /opt/jboss/wildfly/bin/jboss-cli.sh --file=/opt/jboss/cli/05-ee-descriptor-replacement.cli
+
 USER jboss
 
 EXPOSE 8080 9990 8787

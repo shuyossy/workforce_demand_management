@@ -1,0 +1,16 @@
+# 標準記述子（web.xml）の ${env.*:default} 置換を有効化する（イメージ build 時 bake 用、embed-server モード）。
+#
+# 用途: Docker（root Dockerfile / docker/dev/wildfly/Dockerfile）は WAR を standalone/deployments/ へ
+# boot 時 auto-deploy するため online CLI 経路を持たない。よって build 時に embed-server で
+# standalone.xml へ本属性を焼き込み、boot 時の web.xml 解析で APP_JSF_PROJECT_STAGE /
+# APP_SESSION_COOKIE_SECURE / APP_SESSION_TIMEOUT_MINUTES が解決される状態にする。
+#
+# ローカル開発 / E2E（$WILDFLY_HOME の standalone を online 制御）は本 CLI ではなく
+# wildfly/cli/02-system-properties.cli の online write で同属性を有効化する（二重管理ではなく
+# 適用機構が異なるため：online mgmt 経路 vs offline イメージ焼き込み）。write-attribute は冪等。
+
+embed-server --std-out=echo
+
+/subsystem=ee:write-attribute(name=spec-descriptor-property-replacement, value=true)
+
+stop-embedded-server

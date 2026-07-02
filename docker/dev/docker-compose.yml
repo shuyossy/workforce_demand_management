@@ -18,8 +18,9 @@ services:
 
   # wildfly:
   #   build:
-  #     context: ./wildfly
-  #     dockerfile: Dockerfile
+  #     # context はリポジトリルート（wildfly/cli/ を COPY するため）。
+  #     context: ../../
+  #     dockerfile: docker/dev/wildfly/Dockerfile
   #   container_name: sak-dev-wildfly
   #   ports:
   #     - '8080:8080' # HTTP

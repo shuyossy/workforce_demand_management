@@ -5,9 +5,15 @@
          version="6.0">
   <display-name>rcb (jakartaEE)</display-name>
 
+  <!--
+    JSF プロジェクトステージ。WAR 内の既定は本番安全側の Production（詳細エラー非表示・最適化有効）。
+    開発は APP_JSF_PROJECT_STAGE=Development を .env で上書きする。${env.*:default} の展開には
+    WildFly ee サブシステムの spec-descriptor-property-replacement=true が必要
+    （wildfly/cli/02-system-properties.cli の online write + 本番/開発 Dockerfile の build bake で有効化）。
+  -->
   <context-param>
     <param-name>jakarta.faces.PROJECT_STAGE</param-name>
-    <param-value>Development</param-value>
+    <param-value>${env.APP_JSF_PROJECT_STAGE:Production}</param-value>
   </context-param>
 
   <context-param>
@@ -29,11 +35,17 @@
     <welcome-file>login.xhtml</welcome-file>
   </welcome-file-list>
 
+  <!--
+    セッション設定。secure Cookie の既定は本番安全側の true（HTTPS 経路前提）。ローカル開発は
+    HTTP のため APP_SESSION_COOKIE_SECURE=false を .env で上書きする。session-timeout も
+    APP_SESSION_TIMEOUT_MINUTES で切替可能（既定 30 分）。http-only / tracking-mode は環境非依存。
+    ${env.*:default} の展開条件は上記 PROJECT_STAGE のコメント参照。
+  -->
   <session-config>
-    <session-timeout>30</session-timeout>
+    <session-timeout>${env.APP_SESSION_TIMEOUT_MINUTES:30}</session-timeout>
     <cookie-config>
       <http-only>true</http-only>
-      <secure>false</secure>
+      <secure>${env.APP_SESSION_COOKIE_SECURE:true}</secure>
     </cookie-config>
     <tracking-mode>COOKIE</tracking-mode>
   </session-config>
