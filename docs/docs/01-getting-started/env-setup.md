@@ -77,7 +77,7 @@ WildFly の挙動に関わる設定は複数の場所に分散している。ト
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `wildfly/cli/00-offline-cleanup.cli`     | 起動前 offline クリーンアップ。embed-server モードで前回セッションの PostgresDS / H2DS / postgresql / h2-e2e を一括削除し、reload-required 制約を回避                                 |
 | `wildfly/cli/01-datasource-postgres.cli` | main プロファイル用 PostgresDS 登録（クリーンな状態から冪等 add）                                                                                                                     |
-| `wildfly/cli/01-datasource-h2.cli`       | e2e プロファイル用 H2DS を `java:/jdbc/PostgresDS` で登録（persistence.xml を変更しないため同 JNDI 名を再利用）                                                                       |
+| `wildfly/cli/01-datasource-h2.cli`       | e2e プロファイル用 H2DS を `java:/PostgresDS` で登録（persistence.xml を変更しないため同 JNDI 名を再利用）                                                                            |
 | `wildfly/cli/02-system-properties.cli`   | `APP_CONTEXT_ROOT` を WildFly system property に転写（`jboss-web.xml` が参照）                                                                                                        |
 | `wildfly/cli/03-logging.cli`             | `jp.mufg.it.rcb` ロガーレベル（INFO）と CONSOLE フォーマッタの MDC pattern (`requestId` / `empNum`)                                                                                   |
 | `wildfly/cli/04-proxy-forwarding.cli`    | 認証サーバ（リバプロ）の前置きに対応する `proxy-address-forwarding=true`                                                                                                              |

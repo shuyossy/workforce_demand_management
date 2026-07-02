@@ -6,12 +6,12 @@
 
 ## CLI 一覧
 
-| ファイル                     | 役割                                              |
-| ---------------------------- | ------------------------------------------------- |
-| `01-datasource-postgres.cli` | `PostgresDS` の作成、JNDI `java:/jdbc/PostgresDS` |
-| `02-system-properties.cli`   | アプリ向け system property                        |
-| `03-logging.cli`             | logging.properties 連携                           |
-| `04-proxy-forwarding.cli`    | Undertow `proxy-address-forwarding=true`          |
+| ファイル                     | 役割                                         |
+| ---------------------------- | -------------------------------------------- |
+| `01-datasource-postgres.cli` | `PostgresDS` の作成、JNDI `java:/PostgresDS` |
+| `02-system-properties.cli`   | アプリ向け system property                   |
+| `03-logging.cli`             | logging.properties 連携                      |
+| `04-proxy-forwarding.cli`    | Undertow `proxy-address-forwarding=true`     |
 
 ## 冪等性確保パターン
 
@@ -21,7 +21,7 @@
 if (outcome != success) of /subsystem=datasources/data-source=PostgresDS:read-resource
   data-source add \
     --name=PostgresDS \
-    --jndi-name=java:/jdbc/PostgresDS \
+    --jndi-name=java:/PostgresDS \
     --driver-name=postgresql \
     --connection-url=${env.DB_URL} \
     --user-name=${env.DB_USER} \

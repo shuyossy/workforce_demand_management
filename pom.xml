@@ -1084,7 +1084,7 @@
 				    冒頭で H2DS / h2-e2e driver の残骸を remove するため、-Pe2e 実行直後でも自動で
 				    PostgreSQL 構成に戻る（E2E ↔ デバッグ往復対応）。
 				  - e2e プロファイル: e2e profile 側で <scripts combine.self="override"> により
-				    01-datasource-h2.cli (H2DS を JNDI java:/jdbc/PostgresDS で登録) に差し替えられる。
+				    01-datasource-h2.cli (H2DS を JNDI java:/PostgresDS で登録) に差し替えられる。
 				    02-04 は両プロファイル共通。
 			-->
 			<plugin>
