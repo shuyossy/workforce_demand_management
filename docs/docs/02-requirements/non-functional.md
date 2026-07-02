@@ -28,7 +28,7 @@
 ## セキュリティ
 
 - 認証は将来の社内認証サーバ前提（junction-path 越し、`X-User-Id` ヘッダ受領）
-- 本サンプルは開発用 dev login のみ（CDI `@Alternative` または `APP_AUTH_MODE` で切替）
+- 本サンプルは開発用 dev login のみ（CDI `@Alternative` で切替。`app.auth.mode` 設定キーは将来の HEADER 切替用に予約、現状未使用）
 - 認可は業務ロジック側に集約：URL ベースの role mapping はやらず、UseCase で `ApprovalPolicy` を必ず再評価
 
 ## ロギング

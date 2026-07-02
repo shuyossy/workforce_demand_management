@@ -31,7 +31,7 @@ public class DevLoginAuthenticationAdapter implements AuthenticationPort {
 
   /** {@code dev-users.yml} のクラスパス上のパス. */
   @Inject
-  @ConfigProperty(name = "app.dev-users.path", defaultValue = "dev-users.yml")
+  @ConfigProperty(name = "app.dev-users.path")
   /* default */ String devUsersPath;
 
   /** 読み込み済みの開発ユーザ一覧（@PostConstruct で初期化）. */

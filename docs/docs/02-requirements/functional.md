@@ -109,7 +109,7 @@
 - 未認証は `/login.xhtml` へリダイレクト（skipPaths: ログイン画面 / `jakarta.faces.resource` / `resources` / エラーページ）
 - 開発用：`DevLoginAuthenticationAdapter`（ダミーユーザリストから UserDto を組み立て `UserInfoContext` に格納）
 - 将来：`HeaderAuthenticationAdapter`（リクエストヘッダ `X-User-Id` から組み立て）
-- `APP_AUTH_MODE` で切り替え可能（差し替え可能設計）
+- CDI `@Alternative` で切り替え可能（差し替え可能設計。`app.auth.mode` 設定キーは将来の HEADER 切替用に予約、現状未使用）
 
 ## スコープ外
 

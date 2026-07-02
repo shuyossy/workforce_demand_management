@@ -32,23 +32,27 @@ createuser rcb -P  # パスワードを設定
 
 主要な変数：
 
-| 変数                    | 用途                             | デフォルト                             |
-| ----------------------- | -------------------------------- | -------------------------------------- |
-| `DB_URL`                | JDBC URL                         | `jdbc:postgresql://localhost:5432/rcb` |
-| `DB_USER`               | DB ユーザ                        | `rcb`                                  |
-| `DB_PASSWORD`           | DB パスワード                    | （無し、必須）                         |
-| `WILDFLY_HOME`          | WildFly インストールパス（任意） | 未設定 → Docker Compose で起動         |
-| `WILDFLY_HOST`          | 管理接続ホスト                   | `localhost`                            |
-| `WILDFLY_MGMT_PORT`     | management port                  | `9990`                                 |
-| `WILDFLY_DEBUG_PORT`    | JVM debug port                   | `8787`                                 |
-| `WILDFLY_USER`          | 管理ユーザ名                     | `admin`                                |
-| `WILDFLY_PASSWORD`      | 管理ユーザパスワード             | `admin`                                |
-| `APP_CONTEXT_ROOT`      | コンテキストルート               | `/rcb`                                 |
-| `APP_AUTH_MODE`         | `DEV_LOGIN` / `HEADER`           | `DEV_LOGIN`                            |
-| `APP_EXTERNAL_BASE_URL` | 外部URL 絶対指定（メール等）     | 空                                     |
-| `BASE_URL`              | E2E テストの基底 URL             | `http://localhost:8080/rcb`            |
+| 変数                 | 用途                             | デフォルト                             |
+| -------------------- | -------------------------------- | -------------------------------------- |
+| `DB_URL`             | JDBC URL                         | `jdbc:postgresql://localhost:5432/rcb` |
+| `DB_USER`            | DB ユーザ                        | `rcb`                                  |
+| `DB_PASSWORD`        | DB パスワード                    | （無し、必須）                         |
+| `WILDFLY_HOME`       | WildFly インストールパス（任意） | 未設定 → Docker Compose で起動         |
+| `WILDFLY_HOST`       | 管理接続ホスト                   | `localhost`                            |
+| `WILDFLY_MGMT_PORT`  | management port                  | `9990`                                 |
+| `WILDFLY_DEBUG_PORT` | JVM debug port                   | `8787`                                 |
+| `WILDFLY_USER`       | 管理ユーザ名                     | `admin`                                |
+| `WILDFLY_PASSWORD`   | 管理ユーザパスワード             | `admin`                                |
+| `APP_CONTEXT_ROOT`   | コンテキストルート               | `/rcb`                                 |
+| `BASE_URL`           | E2E テストの基底 URL             | `http://localhost:8080/rcb`            |
 
 `.env.example` をコミット、`.env` は `.gitignore`。
+
+> **`app.*` アプリ設定の正本は `src/main/resources/META-INF/microprofile-config.properties`（WAR 内デフォルト）。**
+> 環境変数は WAR 内に置けないインフラ/デプロイ値（DB 接続・WildFly 接続・`APP_CONTEXT_ROOT`）専用とし、
+> `app.*` の既定値を `.env` / `.env.example` に事前宣言しない（二重管理を避ける）。
+> デプロイ固有に `app.*` を上書きしたい高度なケースでは、対応する `APP_*` 環境変数を設定すれば
+> SmallRye Config が ordinal 300（env）> 100（properties）で honor する。
 
 ## WildFly 制御フロー（開発 / E2E / 本番）
 

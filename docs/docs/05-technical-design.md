@@ -83,6 +83,7 @@ domain は外部依存ゼロ（java 標準 + Lombok のみ）
 
 #### アプリ側（`domain` / `application` / `adapter` / `shared`）: `AppConfig`（MicroProfile `@ConfigProperty`）
 
+- **`app.*` アプリ設定の正本は `src/main/resources/META-INF/microprofile-config.properties`（WAR 内デフォルト）に一本化する。** 環境変数は WAR 内に置けないインフラ/デプロイ値（DB 接続・WildFly 接続・`APP_CONTEXT_ROOT`）専用とし、`app.*` の既定値を `.env` / `.env.example` に事前宣言しない（二重管理を避ける）。デプロイ固有に上書きが必要な場合のみ、対応する `APP_*` 環境変数で上書きする（SmallRye が ordinal 300 で properties(100) を上書き）。
 - アプリで `META-INF/microprofile-config.properties` の値を参照する場合は `shared.config.AppConfig` 経由のみ。
 - `AppConfig` 内で `@ConfigProperty(name = "app.xxx")` 経由でフィールド注入し、ドメイン都合に合わせた型変換メソッドを公開する。
 - 例（サンプル）: `app.approval.manager-layer-codes` → `AppConfig#getManagerLayerCodes()` → `ApproveLeaveService` / `RejectLeaveService` が CDI inject（休暇申請サンプル用、サンプル削除時は AppConfig からも該当メソッドを削除）。
@@ -260,7 +261,7 @@ ExceptionFacesResponseHandler#handleErrorResponse()
 - **`AuthenticationPort`** を抽象化し、Adapter を差し替え可能に
   - 開発用：`DevLoginAuthenticationAdapter`（`dev-users.yml` 由来のダミーユーザを `LoginBean`／`login.xhtml` から選択して `UserInfoContext` に格納する補助 UI 一式。開発時のみ使用）
   - 将来：`HeaderAuthenticationAdapter`（社内認証サーバ経由のリクエストヘッダ `X-User-Id` から `UserDto` を組み立て、ログイン画面は消える）
-- 切替は CDI `@Alternative` または環境変数 `APP_AUTH_MODE` ベースの選択
+- 切替は CDI `@Alternative` ベースの選択（`app.auth.mode`（properties）は将来の HEADER 切替用に予約したキーで、現状は消費コード無しの未使用）
 
 ### 認可
 
