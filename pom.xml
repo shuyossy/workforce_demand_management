@@ -56,7 +56,6 @@
 		<junit.version>5.10.2</junit.version>
 		<assertj.version>3.25.3</assertj.version>
 		<mockito.version>5.11.0</mockito.version>
-		<snakeyaml.version>2.2</snakeyaml.version>
 		<maven-war-plugin.version>3.4.0</maven-war-plugin.version>
 		<maven-failsafe-plugin.version>3.2.5</maven-failsafe-plugin.version>
 		<flyway-maven-plugin.version>10.10.0</flyway-maven-plugin.version>
@@ -572,13 +571,6 @@
 			<artifactId>lombok</artifactId>
 			<version>${lombok.version}</version>
 			<scope>provided</scope>
-		</dependency>
-
-		<!-- YAML（dev-users.yml の読み込み用） -->
-		<dependency>
-			<groupId>org.yaml</groupId>
-			<artifactId>snakeyaml</artifactId>
-			<version>${snakeyaml.version}</version>
 		</dependency>
 
 		<!--

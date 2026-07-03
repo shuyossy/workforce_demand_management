@@ -9,36 +9,18 @@
 >
   <f:view contentType="text/html" locale="ja">
     <h:head>
-      <!-- サンプル: 適用先プロジェクトのアプリ名に置換すること（→ docs/01-getting-started/strip-sample.md） -->
-      <title>休暇申請サンプル</title>
+      <title>タスク管理サンプル</title>
       <h:outputStylesheet library="css" name="app.css" />
     </h:head>
     <h:body>
       <!--
-        PrimeFaces 14 + server state saving (web.xml: jakarta.faces.STATE_SAVING_METHOD=server) では
-        <p:menuitem url="..."/> や <h:outputText> も state restoration JS の hook 先として form
-        ancestor を要求する（form 外配置だと Mojarra OutcomeTargetRenderer が "needs Form in
-        ancestry" WARN を発行）。menubar 全体を <h:form id="topForm"> で包むことでまとめて解消する。
-        各ページ側 <h:form>（formNew / listForm / detailForm）は <ui:insert name="content"> 内、
-        すなわち topForm の外で展開されるため form-in-form にはならない。
+        PrimeFaces + server state saving では menubar 内の url ナビゲーションも form ancestor を
+        要求するため、menubar 全体を topForm で包む。各ページ側 form は content 内（topForm 外）に展開される。
       -->
       <h:form id="topForm">
         <p:menubar>
-          <!-- サンプル: menuitem はサンプル（leave）固定。削除/置換は strip-sample.md 参照 -->
-          <p:menuitem value="休暇一覧" url="#{request.contextPath}/leaves/list.xhtml" />
-          <p:menuitem value="新規申請" url="#{request.contextPath}/leaves/new.xhtml" />
-          <f:facet name="options">
-            <h:outputText
-              value="#{loginBean.currentUserName}"
-              rendered="#{not empty loginBean.currentUserName}"
-            />
-            <p:commandButton
-              value="ログアウト"
-              action="#{loginBean.logout}"
-              ajax="false"
-              rendered="#{not empty loginBean.currentUserName}"
-            />
-          </f:facet>
+          <p:menuitem value="タスク一覧" url="#{request.contextPath}/tasks/list.xhtml" />
+          <p:menuitem value="新規作成" url="#{request.contextPath}/tasks/new.xhtml" />
         </p:menubar>
       </h:form>
 

@@ -62,7 +62,7 @@ class RcbLogFormatterTest {
   void formatResolvesMessageIdAndExpandsParameters() {
     final LogRecord record = newRecord(Level.INFO, "RCB00001-I", 42L);
     final String output = formatter.format(record);
-    assertTrue(output.contains("休暇申請を受け付けました"));
+    assertTrue(output.contains("タスクを作成しました"));
     assertTrue(output.contains("42"));
     assertFalse(output.contains("RCB00001-I"));
   }

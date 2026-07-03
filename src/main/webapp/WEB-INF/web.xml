@@ -32,7 +32,7 @@
   </servlet-mapping>
 
   <welcome-file-list>
-    <welcome-file>login.xhtml</welcome-file>
+    <welcome-file>tasks/list.xhtml</welcome-file>
   </welcome-file-list>
 
   <!--

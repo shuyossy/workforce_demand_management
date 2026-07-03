@@ -37,7 +37,12 @@ class ArchitectureTest {
             .importPackages("jp.mufg.it.rcb");
   }
 
-  /** ドメイン層は java / lombok / userinfo.dto 以外に依存してはならない. */
+  /**
+   * ドメイン層は java / lombok / userinfo.dto 以外に依存してはならない.
+   *
+   * <p>本タスク（骨格化）時点では {@code domain} 配下にクラスが存在せず、対象クラス 0 件でルール評価が空になるため {@code
+   * allowEmptyShould(true)} で許容する。以降のタスクで task 用ドメインクラスが追加されれば通常どおり検査される。
+   */
   @Test
   void domainPurity() {
     final ArchRule rule =
@@ -46,8 +51,8 @@ class ArchitectureTest {
             .resideInAPackage("..domain..")
             .should()
             .onlyDependOnClassesThat()
-            .resideInAnyPackage(
-                "..domain..", "java..", "lombok..", "jp.mufg.it.rcb.userinfo.dto..");
+            .resideInAnyPackage("..domain..", "java..", "lombok..", "jp.mufg.it.rcb.userinfo.dto..")
+            .allowEmptyShould(true);
     rule.check(classes);
   }
 
@@ -65,7 +70,12 @@ class ArchitectureTest {
     rule.check(classes);
   }
 
-  /** Inbound アダプタは Outbound アダプタに依存してはならない. */
+  /**
+   * Inbound アダプタは Outbound アダプタに依存してはならない.
+   *
+   * <p>本タスク（骨格化）時点では {@code adapter.in} / {@code adapter.out} 配下にクラスが存在せず、対象クラス 0 件でルール評価が空になるため
+   * {@code allowEmptyShould(true)} で許容する。以降のタスクで task 用アダプタが追加されれば通常どおり検査される。
+   */
   @Test
   void adapterInputDoesNotDependOnAdapterOutput() {
     final ArchRule rule =
@@ -74,7 +84,8 @@ class ArchitectureTest {
             .resideInAPackage("..adapter.in..")
             .should()
             .dependOnClassesThat()
-            .resideInAPackage("..adapter.out..");
+            .resideInAPackage("..adapter.out..")
+            .allowEmptyShould(true);
     rule.check(classes);
   }
 
@@ -92,7 +103,12 @@ class ArchitectureTest {
     rule.check(classes);
   }
 
-  /** ドメイン層は永続化 API（jakarta.persistence）に依存してはならない. */
+  /**
+   * ドメイン層は永続化 API（jakarta.persistence）に依存してはならない.
+   *
+   * <p>本タスク（骨格化）時点では {@code domain} 配下にクラスが存在せず、対象クラス 0 件でルール評価が空になるため {@code
+   * allowEmptyShould(true)} で許容する。以降のタスクで task 用ドメインクラスが追加されれば通常どおり検査される。
+   */
   @Test
   void domainHasNoPersistenceDependency() {
     final ArchRule rule =
@@ -101,7 +117,8 @@ class ArchitectureTest {
             .resideInAPackage("..domain..")
             .should()
             .dependOnClassesThat()
-            .resideInAPackage("jakarta.persistence..");
+            .resideInAPackage("jakarta.persistence..")
+            .allowEmptyShould(true);
     rule.check(classes);
   }
 
