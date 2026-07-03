@@ -80,3 +80,6 @@ my_work
 # Playwright artifacts (Phase 2 e2e の trace / screenshot / video 出力)
 tests/e2e/test-results/
 tests/e2e/playwright-report/
+
+# subagent-driven-development scratch (progress ledger, briefs, review packages)
+.superpowers/
