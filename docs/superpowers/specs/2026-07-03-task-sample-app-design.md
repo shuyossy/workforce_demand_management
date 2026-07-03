@@ -73,6 +73,21 @@
 
 新設は §3〜§9、共通基盤の改変は §8 に詳述。
 
+### 2.5 その他の残存参照（サンプル完全置換のための掃除）
+
+grep で洗い出した leave/認証の残存参照。実装時にすべて task/認証なしへ更新する。
+
+| ファイル                                      | 参照                                                     | 対応                                                                                   |
+| --------------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `src/test/resources/META-INF/persistence.xml` | `<class>...LeaveRequestEntity</class>`                   | `TaskEntity` に差し替え（本番用 `src/main/resources/META-INF/persistence.xml` も同様） |
+| `tests/perf/smoke.js`                         | `login.xhtml` / `loginForm` を GET・検証                 | `tasks/list.xhtml` を叩く smoke に書換                                                 |
+| `pom.xml`                                     | SnakeYAML 依存（コメント「dev-users.yml の読み込み用」） | dev-users.yml 削除で他に利用が無ければ依存も削除（実装時に他用途が無いことを確認）     |
+| `.env`                                        | `APP_AUTH_MODE=DEV_LOGIN`、`login.xhtml` 前提のコメント  | 認証削除に伴い除去・コメント更新                                                       |
+| `.env.example`                                | `H2_FILE_PATH=./target/h2/leave-e2e`                     | `task-e2e`（または汎用名）へリネーム。参照する pom / playwright 設定側と整合を取る     |
+| `.gitlab/ci/release.yml`                      | `docker login`（レジストリログイン）                     | 認証サンプルとは無関係。対象外                                                         |
+
+> 掃除の網羅確認: 実装完了後に `grep -rniE "leave|dev-users|login\.xhtml|manager-layer|approval|DEV_LOGIN"`（node_modules/target/.git 除外）で残存ゼロを確認する。ただしメッセージ ID プレフィックス `RCB`/`MST`・データソース名 `PostgresDS`・パッケージ名 `jp.mufg.it.rcb` は固定値のため対象外（strip-sample.md §変更してはいけないもの 準拠）。
+
 ## 3. アーキテクチャ／パッケージ配置
 
 依存方向・ArchUnit ルールは技術設計書 §1 に完全準拠。新規クラス一覧：
