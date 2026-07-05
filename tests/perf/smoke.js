@@ -13,11 +13,11 @@ export const options = {
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080/rcb';
 
 export default function () {
-  // ログイン画面（公開ページ）への到達確認
-  const res = http.get(`${BASE_URL}/login.xhtml`);
+  // タスク一覧画面（認証なし・公開ページ）への到達確認
+  const res = http.get(`${BASE_URL}/tasks/list.xhtml`);
   check(res, {
-    'login.xhtml status is 200': (r) => r.status === 200,
-    'login.xhtml has form': (r) => r.body.includes('loginForm'),
+    'tasks/list.xhtml status is 200': (r) => r.status === 200,
+    'tasks/list.xhtml has table': (r) => r.body.includes('listForm'),
   });
   sleep(1);
 }

@@ -1,111 +1,83 @@
-import { test, expect, Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
-// 業務エラー（回復可能: MSTBusinessException）が JSF ライフサイクル経由で
-// 正しくハンドリングされ、「現画面に留まって FacesMessage を表示する」ことを担保する。
-//
-// この経路（FacesExceptionHandlerFactory → FacesExceptionHandler →
-// ExceptionFacesResponseHandler）は、プロジェクトのテスト戦略上 E2E でしか
-// 実通過できない（単体は throw までで止まり、結合テストはコンテナを起動しない）。
-//
-// 検証シナリオ（stale 状態＝二重処理）:
-//   1. 申請者 E0001 が固有期間で新規申請し、その申請の詳細 URL を取得する。
-//   2. 承認権者 E0002 を 2 セッション（別コンテキスト）で起動し、両方が同じ
-//      PENDING の詳細画面を開く（承認ボタンが描画される）。
-//   3. 一方（B）が先に承認 → 申請は APPROVED に遷移する。
-//   4. もう一方（A）が stale な画面で承認をクリックする。
-//      → Service が「申請中のみ承認/却下できます」で MSTBusinessException を送出。
-//
-// 期待挙動（設計が正）:
-//   - A は詳細画面（detail.xhtml）に留まる（error.xhtml へ全画面遷移しない）。
-//   - 業務エラーメッセージが p:messages に表示される。
+// 例外処理からのページ遷移を JSF ライフサイクル経由で実通過させる（本プロジェクトでは E2E でしか通らない経路）。
+test.describe('Exception handling (JSF exception handler wiring)', () => {
+  // (a) バリデーションエラー: タイトル未入力 → 現画面(new)に留置 + globalMessages。
+  test('required-field validation stays on new.xhtml with a global message', async ({ page }) => {
+    await page.goto('tasks/new.xhtml');
+    await page.click('button:has-text("作成")');
+    await expect(page).toHaveURL(/tasks\/new\.xhtml/);
+    await expect(page.locator('.ui-messages-error').first()).toBeVisible();
+  });
 
-async function login(page: Page, empNum: string): Promise<void> {
-  await page.goto('login.xhtml');
-  await page.selectOption('select[id="loginForm:user_input"]', empNum, { force: true });
-  await page.click('button:has-text("ログイン")');
-  await page.waitForURL('**/leaves/list.xhtml');
-}
-
-test.describe('Business error handling (JSF exception handler wiring)', () => {
-  test('approving an already-processed request stays on detail with a business message (not error.xhtml)', async ({
+  // (b) 業務エラー(回復可): 2 タブ stale 二重完了 → 現画面(list)に留置 + 業務メッセージ、error.xhtml へ遷移しない。
+  test('double-complete stays on list with a business message (not error.xhtml)', async ({
     browser,
   }) => {
-    // list.xhtml は期間を LocalDate の ISO 形式（YYYY-MM-DD）で表示するため、
-    // 行特定は ISO 形式で、日付入力（p:datePicker）はスラッシュ形式で行う。
-    const startIso = '2026-09-21';
+    const title = `E2E 二重完了 ${Date.now()}`;
 
-    // --- 1. 申請者 E0001 が固有期間で新規申請し、詳細 URL を取得 ---
-    const applicantCtx = await browser.newContext();
-    const applicant = await applicantCtx.newPage();
-    await login(applicant, 'E0001');
+    // 事前に 1 件作成。
+    const setup = await browser.newContext();
+    const setupPage = await setup.newPage();
+    await setupPage.goto('tasks/new.xhtml');
+    await setupPage.fill('input[id="formNew:title"]', title);
+    await setupPage.click('button:has-text("作成")');
+    await setupPage.waitForURL('**/tasks/list.xhtml');
+    await setup.close();
 
-    await applicant.goto('leaves/new.xhtml');
-    await applicant.selectOption('select[id="formNew:type_input"]', 'PAID', { force: true });
-    await applicant.fill('input[id="formNew:start_input"]', '2026/09/21');
-    await applicant.fill('input[id="formNew:end_input"]', '2026/09/22');
-    await applicant.fill('textarea[id="formNew:reason"]', 'E2E 例外ハンドリング（stale 状態）検証');
-    await applicant.click('button:has-text("申請")');
-    await applicant.waitForURL('**/leaves/list.xhtml');
-
-    // 「自分の申請」タブ（appliedAt DESC で先頭が最新）から対象行の詳細を開く。
-    await applicant
-      .locator('tr', { hasText: startIso })
-      .locator('a:has-text("詳細")')
-      .first()
-      .click();
-    await applicant.waitForURL('**/leaves/detail.xhtml**');
-    const detailUrl = applicant.url();
-    expect(detailUrl).toContain('detail.xhtml?id=');
-
-    // --- 2. 承認権者 E0002 を 2 セッションで起動し、両方が PENDING 詳細を開く ---
+    // 2 セッションで同じ一覧（TODO 完了ボタンが見える stale 状態）を開く。
     const ctxA = await browser.newContext();
     const pageA = await ctxA.newPage();
-    await login(pageA, 'E0002');
-    await pageA.goto(detailUrl);
-    // 承認ボタンが描画される時点（＝この時点では承認可能）を確認。
-    await expect(pageA.locator('button:has-text("承認")')).toBeVisible();
-
+    await pageA.goto('tasks/list.xhtml');
     const ctxB = await browser.newContext();
     const pageB = await ctxB.newPage();
-    await login(pageB, 'E0002');
-    await pageB.goto(detailUrl);
+    await pageB.goto('tasks/list.xhtml');
 
-    // --- 3. B が先に承認 → 申請は APPROVED に遷移 ---
-    await pageB.fill('textarea[id="detailForm:comment"]', '先に承認');
-    await pageB.click('button:has-text("承認")');
-    await pageB.waitForURL('**/leaves/list.xhtml');
+    // B が先に完了。
+    await pageB.locator('tr', { hasText: title }).locator('button:has-text("完了")').click();
+    await pageB.waitForURL('**/tasks/list.xhtml');
 
-    // --- 4. A が stale な画面で承認 → 業務エラー ---
-    await pageA.fill('textarea[id="detailForm:comment"]', '後追い承認');
-    await pageA.click('button:has-text("承認")');
+    // A が stale な画面で完了 → 業務エラー（回復可）。
+    await pageA.locator('tr', { hasText: title }).locator('button:has-text("完了")').click();
 
-    // === 期待挙動（設計が正）===
-    // 現画面（detail.xhtml）に留まり、error.xhtml へ全画面遷移しない。
-    await expect(pageA).toHaveURL(/leaves\/detail\.xhtml/);
-    // 業務エラーメッセージが表示される。
-    await expect(pageA.getByText('申請中の休暇申請のみ承認/却下できます')).toBeVisible();
-    // システムエラー画面（error.xhtml）には遷移していない。
+    await expect(pageA).toHaveURL(/tasks\/list\.xhtml/);
+    await expect(pageA.getByText('既に完了したタスクです')).toBeVisible();
     await expect(pageA.getByText('エラーが発生しました')).toHaveCount(0);
 
-    await applicantCtx.close();
     await ctxA.close();
     await ctxB.close();
   });
 
-  // メッセージ表示は各フォームの p:messages を廃し、テンプレート main.xhtml の
-  // globalMessages に一本化した（二重表示防止）。この変更で「必須検証エラーが
-  // 消えずに一本化先へ表示される」ことを回帰防止として担保する。
-  test('required-field validation errors are shown once via the consolidated global messages (new.xhtml)', async ({
-    page,
-  }) => {
-    await login(page, 'E0001');
-    await page.goto('leaves/new.xhtml');
+  // (c) 業務エラー(回復不可): 存在しない ID への完了 POST 偽装 → faces-config 経由で error.xhtml に遷移。
+  test('completing a non-existent id (forged POST) redirects to error.xhtml', async ({ page }) => {
+    // まず TODO を 1 件用意（完了ボタンが描画される状態を作る）。
+    const title = `E2E 偽装 ${Date.now()}`;
+    await page.goto('tasks/new.xhtml');
+    await page.fill('input[id="formNew:title"]', title);
+    await page.click('button:has-text("作成")');
+    await page.waitForURL('**/tasks/list.xhtml');
 
-    // 何も入力せず申請 → JSF の required 検証エラーで申請画面に留まる。
-    await page.click('button:has-text("申請")');
+    // 完了サブミットの POST ボディで taskId を存在しない値に書き換える（POST 偽装の再現）。
+    // ViewState 等はそのままに taskId の値のみ差し替えるため JSF ライフサイクルは正常に進み、
+    // UseCase が対象不存在を検知して MSTBusinessNonRecoverException を送出する。
+    await page.route('**/tasks/list.xhtml', async (route) => {
+      const req = route.request();
+      if (req.method() === 'POST') {
+        const body = req.postData() ?? '';
+        const forged = body.replace(/taskId=\d+/, 'taskId=999999999');
+        await route.continue({ postData: forged });
+      } else {
+        await route.continue();
+      }
+    });
 
-    await expect(page).toHaveURL(/leaves\/new\.xhtml/);
-    // 一本化した globalMessages にエラーが描画される（PrimeFaces の error スタイル）。
-    await expect(page.locator('.ui-messages-error').first()).toBeVisible();
+    await page.locator('tr', { hasText: title }).locator('button:has-text("完了")').click();
+
+    // faces-config の error.page.500 経由で error.xhtml に全画面遷移する。
+    await expect(page).toHaveURL(/error\.xhtml/);
+    await expect(page.getByText('エラーが発生しました')).toBeVisible();
+    // 戻りリンクからタスク一覧へ戻れる。
+    await page.click('a:has-text("タスク一覧へ戻る")');
+    await expect(page).toHaveURL(/tasks\/list\.xhtml/);
   });
 });
