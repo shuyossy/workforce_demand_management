@@ -5,8 +5,7 @@
 1. `.env` を作成済みであること
 2. VSCode で本プロジェクトを開く
 3. F5 を押下 → `dev:bootstrap-and-deploy` が自動実行され、WildFly 起動 + Flyway + CLI 適用 + WAR デプロイ + デバッガアタッチが順次走る
-4. ブラウザで `http://localhost:8080/rcb/login.xhtml` を開く
-5. ユーザを選択してログイン
+4. ブラウザで `http://localhost:8080/rcb/tasks/list.xhtml` を開く（本サンプルは認証機能を持たないため、ログイン操作なしでタスク一覧が表示される）
 
 ## F5 で起こること
 

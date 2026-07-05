@@ -1,6 +1,6 @@
 # ビジネスルール台帳
 
-ドメイン / ユースケース起点のルールのみ収録する（横断的な技術ルールは技術設計書 §ロギング / §認証認可 等を参照）。
+ドメイン / ユースケース起点のルールのみ収録する（横断的な技術ルールは技術設計書 §ロギング / §エラーハンドリング 等を参照）。
 
 各ルールには「概要」「詳細参照」「実装場所」「テスト」を明記し、設計段階でも台帳から仕様にたどり着ける形にする。
 
@@ -14,22 +14,19 @@
 | BR-POL-NNN | 方針     | `<業務判定の規則>`                 | ドメインモデルへのリンク | ドメインサービスメソッド / エンティティメソッド / UseCase メソッドのいずれか | ドメインサービステスト or UseCase テスト |
 | BR-PRE-NNN | 事前条件 | `<UseCase 実行時に成立すべき条件>` | ユースケースへのリンク   | サービスメソッド                                                             | UseCase テスト                           |
 
-## サンプル例: ルール一覧（休暇申請）
+## サンプル例: ルール一覧（タスク管理）
 
 :::note サンプル例
-本セクションは休暇申請サンプル用。適用先プロジェクトでは案件のルールを上記テンプレに合わせて記述すること（→ [サンプル削除ガイド](../getting-started/strip-sample)）。
+本セクションはタスク管理サンプル用。適用先プロジェクトでは案件のルールを上記テンプレに合わせて記述すること（→ [サンプル削除ガイド](../getting-started/strip-sample)）。
 :::
 
-| ID         | 種別     | 概要                                                                                       | 詳細参照                                                                        | 実装場所                                                      | テスト                                |
-| ---------- | -------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------- |
-| BR-INV-001 | 不変条件 | 期間順序：`startDate <= endDate`                                                           | [ドメインモデル](./sample/leave-domain-model)                                   | `LeavePeriod` コンストラクタ                                  | `LeavePeriodTest`                     |
-| BR-INV-002 | 不変条件 | 判断者整合性：PENDING 時は judge\_\* が NULL、APPROVED/REJECTED 時は judge\_\* が NOT NULL | [ドメインモデル](./sample/leave-domain-model)                                   | DB CHECK `chk_judge_complete` + `LeaveRequest.approve/reject` | DB 制約テスト（結合）                 |
-| BR-POL-001 | 方針     | 承認可否：`approver.orgId == applicant.orgId AND approver.layerSCode ∈ managerLayerCodes`  | [ドメインモデル](./sample/leave-domain-model)                                   | `ApprovalPolicy.canApprove`                                   | `ApprovalPolicyTest` (8 ケース)       |
-| BR-PRE-001 | 事前条件 | 自己承認禁止：申請者と判断者の `empNum` が異なる                                           | [ユースケース ApproveLeaveUseCase](./sample/leave-usecases#approveleaveusecase) | `ApproveLeaveService` / `RejectLeaveService`                  | UseCase テスト（自分の申請ケース）    |
-| BR-PRE-002 | 事前条件 | 重複遷移禁止：PENDING のみ承認/却下可                                                      | [ユースケース ApproveLeaveUseCase](./sample/leave-usecases#approveleaveusecase) | `ApproveLeaveService` / `RejectLeaveService`                  | UseCase テスト（APPROVED 済への承認） |
-| BR-PRE-003 | 事前条件 | 申請理由必須：1〜500 文字                                                                  | [ユースケース ApplyLeaveUseCase](./sample/leave-usecases#applyleaveusecase)     | `ApplyLeaveCommand` の Bean Validation                        | Bean Validation テスト                |
-| BR-PRE-004 | 事前条件 | 却下コメント必須：1〜500 文字                                                              | [ユースケース RejectLeaveUseCase](./sample/leave-usecases#rejectleaveusecase)   | `RejectLeaveCommand` の Bean Validation                       | Bean Validation テスト                |
-| BR-PRE-005 | 事前条件 | 対象存在：承認/却下の対象 LeaveRequest が DB に存在する                                    | [ユースケース ApproveLeaveUseCase](./sample/leave-usecases#approveleaveusecase) | `ApproveLeaveService` / `RejectLeaveService`                  | UseCase テスト（存在しない id）       |
+| ID         | 種別     | 概要                                                                               | 詳細参照                                                           | 実装場所                                   | テスト                                  |
+| ---------- | -------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------ | --------------------------------------- |
+| BR-INV-001 | 不変条件 | タイトル必須：`title` は非空白                                                     | [ドメインモデル](./domain-model#task)                              | `Task` コンストラクタ                      | `TaskTest`                              |
+| BR-POL-001 | 方針     | 完了可否：`status == TODO` のときのみ完了操作を実行できる                          | [ドメインモデル](./domain-model#task)                              | `TaskStatus.canComplete` / `Task.complete` | `TaskStatusTest` / `TaskTest`           |
+| BR-PRE-001 | 事前条件 | 重複完了禁止：既に完了（DONE）済のタスクは再完了できない（回復可の業務エラー）     | [ユースケース CompleteTaskUseCase](./usecases#completetaskusecase) | `CompleteTaskService`                      | UseCase テスト（DONE 済タスクへの完了） |
+| BR-PRE-002 | 事前条件 | 対象存在：完了対象の Task が DB に存在する（存在しない場合は回復不可の業務エラー） | [ユースケース CompleteTaskUseCase](./usecases#completetaskusecase) | `CompleteTaskService`                      | UseCase テスト（存在しない id）         |
+| BR-PRE-003 | 事前条件 | タイトル必須・上限文字数：1〜100 文字                                              | [ユースケース CreateTaskUseCase](./usecases#createtaskusecase)     | `CreateTaskCommand` の Bean Validation     | Bean Validation テスト                  |
 
 ## 凡例
 
@@ -70,5 +67,5 @@
 
 横断的技術ルールは技術設計書側に集約しているため、本台帳には含めない：
 
-- BR-POL-002 部長層コード設定化 → [技術設計書](../technical-design) §認証/認可
 - 業務イベント INFO ログ → [技術設計書](../technical-design) §ロギング
+- 対象不存在の回復可/回復不可の切り分け → [技術設計書](../technical-design) §エラーハンドリング

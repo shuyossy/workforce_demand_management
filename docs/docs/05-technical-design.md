@@ -18,8 +18,7 @@ jp.mufg.it.rcb
 │   └── out.persistence                    # JPA Entity, Repository, Mapper
 ├── shared
 │   ├── config                             # AppConfig（MicroProfile Config ラッパー）
-│   ├── security                           # AuthenticationPort + DevLoginAdapter
-│   └── web                                # AccessLogFilter, AppUrlBuilder, AuthenticationFilter
+│   └── web                                # AccessLogFilter, AppUrlBuilder, RequestEncodingFilter 等（本サンプルは認証機能を持たない）
 ├── config                                 # Config / ConfigFactory / ConfigProducer / PropertyId（社内ライブラリ準拠 IF、変更不可）
 ├── log.cdi                                # @InjectLogger / LoggerProducer / LoggerType（社内ライブラリ準拠 IF、変更不可）
 ├── log.formatter                          # RcbLogFormatter / RcbMessageResolver / RcbFormatterInstaller（社内ライブラリ準拠 IF、変更不可）
@@ -71,7 +70,7 @@ domain は外部依存ゼロ（java 標準 + Lombok のみ）
 
 これらのパッケージから呼び出される独自実装ユーティリティを新規追加する場合も、**呼び出し方向は「社内ライブラリ準拠 IF → 独自実装」の片方向のみ** とし、独自実装側から社内ライブラリ準拠 IF パッケージへの逆参照を増やさないこと。
 
-`userinfo.context.UserInfoContext` は `@SessionScoped` でログイン済みユーザ情報（`UserDto user` フィールドのみ）を保持する Bean。利便メソッドが必要な場合は呼び出し側で `userInfoContext.getUser().getXxx()` を直接展開すること（フィールド追加・メソッド追加・スコープ変更すべて不可）。
+`userinfo.context.UserInfoContext` は `@SessionScoped` でセッション内のユーザ情報（`UserDto user` フィールドのみ）を保持する Bean（本サンプルでは未使用）。利便メソッドが必要な場合は呼び出し側で `userInfoContext.getUser().getXxx()` を直接展開すること（フィールド追加・メソッド追加・スコープ変更すべて不可）。
 
 #### 改変防止ガード（pre-commit）
 
@@ -87,7 +86,7 @@ domain は外部依存ゼロ（java 標準 + Lombok のみ）
 - **`web.xml` のコンテナ設定値（`jakarta.faces.PROJECT_STAGE` / セッション Cookie `secure` / `session-timeout`）も同じ「インフラ/デプロイ値」カテゴリ**として扱う。`@ConfigProperty` で読む `app.*` ではなく、デプロイ環境依存（dev/prod・HTTP/HTTPS）のコンテナ記述子値であり、`web.xml` が `${env.APP_JSF_PROJECT_STAGE:Production}` / `${env.APP_SESSION_COOKIE_SECURE:true}` / `${env.APP_SESSION_TIMEOUT_MINUTES:30}` で参照する（WAR 内既定は本番安全側）。`${env.*:default}` の展開には WildFly ee サブシステムの `spec-descriptor-property-replacement=true` が前提で、ローカル/E2E は `wildfly/cli/02-system-properties.cli` の online write（本属性は `restart-required=no-services` のため同一セッションの後続 deploy に即時反映）、Docker（online CLI 経路を持たない boot-time auto-deploy）は `wildfly/cli/05-ee-descriptor-replacement.cli` を Dockerfile の build 時に embed-server で焼き込む形で有効化する。置換が無効だと `<secure>` が boolean 解析失敗で WAR デプロイが明示的に失敗する（silent-insecure にならない安全な失敗モード）。
 - アプリで `META-INF/microprofile-config.properties` の値を参照する場合は `shared.config.AppConfig` 経由のみ。
 - `AppConfig` 内で `@ConfigProperty(name = "app.xxx")` 経由でフィールド注入し、ドメイン都合に合わせた型変換メソッドを公開する。
-- 例（サンプル）: `app.approval.manager-layer-codes` → `AppConfig#getManagerLayerCodes()` → `ApproveLeaveService` / `RejectLeaveService` が CDI inject（休暇申請サンプル用、サンプル削除時は AppConfig からも該当メソッドを削除）。
+- 現状 `AppConfig` は公開する設定値を持たない骨格のみ（`app.external-base-url` は `shared.web.AppUrlBuilder` が直接 `@ConfigProperty` で参照する）。タスク管理サンプル自体はアプリ固有設定を持たない。
 - 新規アプリ設定は `src/main/resources/META-INF/microprofile-config.properties` にキーを追加し、`AppConfig` にメソッドを追加する（MicroProfile Config 仕様のデフォルト経路。`application.properties` 等の別名を使うと SmallRye Config の自動ロード対象外となり、`@ConfigProperty` が解決できないので注意）。
 
 #### 社内ライブラリ準拠 IF 内専用: `Config` / `@PropertyId` / `ConfigFactory`
@@ -105,8 +104,8 @@ domain は外部依存ゼロ（java 標準 + Lombok のみ）
 
 ### JPA Entity ⇄ Domain 分離
 
-- JPA Entity は `adapter.out.persistence.<Aggregate>Entity`（例: 休暇申請サンプルでは `LeaveRequestEntity`）に配置
-- Mapper（例: `LeaveRequestMapper`）が双方向変換
+- JPA Entity は `adapter.out.persistence.<Aggregate>Entity`（例: タスク管理サンプルでは `TaskEntity`）に配置
+- Mapper（例: `TaskMapper`）が双方向変換
 - これにより `..domain..` は `jakarta.persistence..` に依存しない（ArchUnit で hard gate）
 
 ### トランザクション境界
@@ -143,7 +142,7 @@ private Logger accessLogger;    // HTTP リクエスト境界
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | ERROR  | システム障害、`MSTBusinessNonRecoverException`（`ExceptionLogHandler` が `Level.SEVERE` で自動出力。デフォルトメッセージ ID は `MST00004-E`） |
 | WARN   | 業務イベント上の警告（バリデーション違反、業務ルール上の警告など）。アプリ側コードが明示的に `logger.log(Level.WARNING, ...)` で出力する      |
-| INFO   | 正常系の業務イベント（申請/承認/却下/ログイン）                                                                                               |
+| INFO   | 正常系の業務イベント（タスク作成/完了 等）                                                                                                    |
 | FINE   | 開発時のみ                                                                                                                                    |
 
 例外型による自動ログ挙動の違い（`ExceptionLogHandler` 経由）:
@@ -188,6 +187,15 @@ private Logger accessLogger;    // HTTP リクエスト境界
 - **`MSTBusinessNonRecoverException`（回復不可）**: 業務処理が継続不可能なエラー（永続化失敗、外部システム不整合、想定外の状態遷移など）。`/error.xhtml` 遷移 + `Level.SEVERE` 自動ログ（`MST00004-E`）。
 
 例外的に上記 2 つで表現できないシステム例外（永続層・外部 I/O から自然に投げられる `RuntimeException` 等）は無理にラップせず、そのまま伝搬させる（`FacesExceptionHandler` の unknown 経路 → web.xml `<error-page>` で `/error.xhtml` 着地）。新規例外型が必要な場合は社内ライブラリチームと相談する（アプリ側に独自例外クラスを新設しない）。
+
+### 対象不存在の回復可/回復不可の切り分け（サンプル例）
+
+「対象データが存在しない」という同じ事象でも、発生経路によって回復可否の判断が変わる。
+
+- **通常操作（GET / ブックマーク等）での対象不存在**: URL 直叩きや、他ユーザによる削除後の古いブックマークアクセスなど、ユーザ操作として自然に起こり得るため回復可（`MSTBusinessException`）として現画面/一覧へ留置する。
+- **削除機能を持たない本サンプルでの完了 POST 対象不存在**: `CompleteTaskUseCase` は既存タスクの ID を一覧画面の完了ボタンからのみ受け取る想定であり、削除機能が存在しないため通常操作では対象が消えることがない。したがって完了 POST に乗った ID が実在しないのは POST 偽装 / データ不整合という想定外状態であり、回復不可（`MSTBusinessNonRecoverException`）として `error.page.500` 経由で `/error.xhtml` へ遷移させる（`CompleteTaskService` 参照）。
+
+同じ「対象不存在」でも、業務上ユーザが引き起こし得る事象か、削除機能の有無等ドメイン構造上あり得ない事象かで回復可否を判断すること。
 
 ### 設計原則
 
@@ -254,32 +262,23 @@ ExceptionFacesResponseHandler#handleErrorResponse()
 
 ## 6. 認証 / 認可
 
-### 認証
+### 本サンプルの前提: 認証機能を持たない
 
-- `AuthenticationFilter`（`@WebFilter("/*")`）がセッション内 `UserInfoContext.getUser()` の非 null を確認
-- 未認証なら `/login.xhtml` へリダイレクト
-  - skipPaths: `/login.xhtml` / `jakarta.faces.resource` / `resources` / `/error.xhtml`
-- **`AuthenticationPort`** を抽象化し、Adapter を差し替え可能に
-  - 開発用：`DevLoginAuthenticationAdapter`（`dev-users.yml` 由来のダミーユーザを `LoginBean`／`login.xhtml` から選択して `UserInfoContext` に格納する補助 UI 一式。開発時のみ使用）
-  - 将来：`HeaderAuthenticationAdapter`（社内認証サーバ経由のリクエストヘッダ `X-User-Id` から `UserDto` を組み立て、ログイン画面は消える）
-- 切替は CDI `@Alternative` ベースの選択（`app.auth.mode`（properties）は将来の HEADER 切替用に予約したキーで、現状は消費コード無しの未使用）
+タスク管理サンプルは認証機能を持たない。ログイン画面・セッションベースのユーザ判定・認証 Filter は存在せず、`/tasks/list.xhtml` を含む全画面が匿名でそのまま利用可能である。認可（権限判定）も同様に行わない（単一の匿名利用者が全タスクを操作できる想定）。
 
-### 認可
+`jp.mufg.it.rcb.userinfo.dto` / `jp.mufg.it.rcb.userinfo.context`（`UserDto` / `UserPositionDto` / `UserInfoContext`）は社内ライブラリ準拠 IF として引き続きパッケージは同梱されているが、本サンプルのどのクラスからも参照されていない（将来認証を再導入する際の差し込み口として温存）。
 
-URL ベースの role mapping はやらず、業務ロジック側（UseCase）に集約する。基本フロー:
+将来、案件で認証・認可が必要になった場合は以下を再導入すること:
 
-1. UseCase が対象データを取得し、存在チェック
-2. 前提条件チェック（status / version などの状態整合性）
-3. アクター（操作者）の権限・所属を評価
-4. 違反は `MSTBusinessException`（回復可）を throw
+- **認証**: `AuthenticationPort` を抽象化し、開発用 Adapter（dev ユーザ選択 UI）と本番用 Adapter（社内認証サーバ経由のリクエストヘッダから `UserDto` を組み立てる等）を CDI `@Alternative` で切り替える構成。未認証時は `/login.xhtml` 等へリダイレクトする Servlet Filter を追加する。
+- **認可**: URL ベースの role mapping はやらず、業務ロジック側（UseCase）に集約する。基本フロー:
+  1. UseCase が対象データを取得し、存在チェック
+  2. 前提条件チェック（status / version などの状態整合性）
+  3. アクター（操作者）の権限・所属を評価（`UserInfoContext` からセッション格納の `UserDto` を取得し、`UserDto#getMainUserPositionDto()` で主務の `UserPositionDto` を取り判定する）
+  4. 違反は `MSTBusinessException`（回復可）を throw
+- 画面側の `rendered="#{xxxBean.canDoX}"` は **UX 上のボタン抑制目的のみ**とし、URL 直叩きや POST 偽装でも UseCase 側で必ず再評価する設計にすること（DTO に事前計算したフラグを bind するパターンを推奨：算出を UseCase に一本化でき、画面側にロジックを漏らさない）。
 
-#### 権限評価の足回り
-
-- `UserInfoContext`（`@SessionScoped`）からセッション格納の `UserDto` を取得する。
-- `UserDto#getMainUserPositionDto()` で主務の `UserPositionDto` を取り、`orgId` / `layerSCode` / `pstnCode` 等で判定する。
-- 認証が未済なら `AuthenticationFilter` が `/login.xhtml` リダイレクトするため、UseCase に到達した時点で `getUser()` は非 null（防御コードは不要）。
-
-画面側の `rendered="#{xxxBean.canDoX}"` は **UX 上のボタン抑制目的のみ**。URL 直叩きや POST 偽装でも UseCase 側で必ず再評価するため突破不能（DTO に事前計算したフラグを bind するパターンを推奨：算出を UseCase に一本化でき、画面側にロジックを漏らさない）。
+なお ADR-003（社内認証サーバ junction-path 対応）が定める URL / コンテキストルート規約（次節）は、認証の有無によらず有効な設計原則である。
 
 ## 7. URL / コンテキストルート規約
 
@@ -299,7 +298,7 @@ junction-path 対応：
 ### 8.1 テスト戦略概要
 
 - **ドメイン / アプリケーション層は単体テストで担保**（port をモックして純粋ロジックを高速検証）。
-- **アダプタ層（Repository + Backing Bean）は結合テストで担保**。**バッキングビーンの単体テスト（Service モック）は行わない**（mock を多用したテストは本番経路を保証しないため）。バッキングビーン IT は本物の Service / 本物の `LeaveRepositoryAdapter` / 本物の H2 DB まで通し、`FacesContext` のみ `Mockito.mockStatic` で差し替える。
+- **アダプタ層（Repository + Backing Bean）は結合テストで担保**。**バッキングビーンの単体テスト（Service モック）は行わない**（mock を多用したテストは本番経路を保証しないため）。バッキングビーン IT は本物の Service / 本物の `TaskRepositoryAdapter` / 本物の H2 DB まで通し、`FacesContext` のみ `Mockito.mockStatic` で差し替える。
 - **CDI 配線の正しさ / `@Transactional` / JSF ライフサイクル / Servlet Filter 経路**は WildFly 起動の Playwright E2E が担保する（結合テスト側はコンテナを起動しないので、Bean IT は手動配線 + リフレクション注入で組み立てる）。
 - **E2E カバレッジは JaCoCo に統合する**: `-Pe2e` プロファイル時に WildFly JVM へ JaCoCo agent (`output=tcpserver`) を attach し、Playwright 終了後に `jacococli dump` で `target/jacoco-e2e.exec` を採取。`jacoco-merged.exec` に unit + IT + E2E を統合した上で、基本 95% 閾値の hard gate を再評価する。
 - 結合テスト基盤は `jp.mufg.it.rcb.shared.test.JpaTestSupport`（H2 bootstrap / `@PersistenceContext` リフレクション注入 / TX ヘルパ）と `ReflectionTestSupport` に共通化。新規 Repository Adapter が増えても per-adapter Support クラスを作る必要はない。
@@ -367,7 +366,7 @@ sequenceDiagram
     Maven->>Flyway: migrate (H2 file-based, target/h2/app-e2e)
     Maven->>WildFly: execute-commands (01-datasource-h2.cli) + deploy WAR
     Maven->>PW: cd tests/e2e && npx playwright test
-    PW->>WildFly: HTTP requests (login / apply / approve / list)
+    PW->>WildFly: HTTP requests (create / list / complete)
     Maven->>CLI: java -jar jacococli.jar dump --port 6300<br/>--destfile target/jacoco-e2e.exec
     CLI->>WildFly: TCP connect → flush exec data
     Maven->>Maven: jacoco:merge (jacoco.exec + jacoco-it.exec + jacoco-e2e.exec)
@@ -395,14 +394,12 @@ sequenceDiagram
 
 #### バッキングビーン IT パターン集
 
-代表クラス列はサンプル例（休暇申請）の参考。適用先プロジェクトでは自案件のクラスに置き換える。
+代表クラス列はサンプル例（タスク管理）の参考。適用先プロジェクトでは自案件のクラスに置き換える。
 
-| パターン             | 代表クラス（サンプル）          | 構成要素                                                                                               |
-| -------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| リスト取得型         | `LeaveListBeanIT`（サンプル）   | `@PostConstruct init()` 相当を IT 内で呼び、seed 済データを read。`FacesContext` static mock のみ      |
-| 状態遷移型           | `LeaveDetailBeanIT`（サンプル） | `runInTx` でアクション境界を作り、approve / reject 後の status を assert                               |
-| コマンド型           | `LeaveFormBeanIT`（サンプル）   | submit → `em.clear()` → 検索 で永続化結果を確認。Bean Validation 経路は本番 Adapter 側で `@Valid` 起動 |
-| 認証ライフサイクル型 | `LoginBeanIT`（共通基盤）       | `UserInfoContext.setUser(...)` → `getUser()` → `setUser(null)` の遷移を本物の Bean で踏む              |
+| パターン                | 代表クラス（サンプル）       | 構成要素                                                                                                                                                              |
+| ----------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| リスト取得 + 状態遷移型 | `TaskListBeanIT`（サンプル） | `@PostConstruct init()` 相当を IT 内で呼び、seed 済データを read。`runInTx` でアクション境界を作り、complete() 後の status を assert。`FacesContext` static mock のみ |
+| コマンド型              | `TaskFormBeanIT`（サンプル） | submit → `em.clear()` → 検索 で永続化結果を確認。Bean Validation 経路は本番 Adapter 側で `@Valid` 起動                                                                |
 
 各パターン共通の注意点:
 

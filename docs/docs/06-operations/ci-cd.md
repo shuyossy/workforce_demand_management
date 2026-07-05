@@ -28,7 +28,7 @@
 
 - ArchUnit テスト（`test` stage）— 層境界 hard gate
 - JaCoCo 閾値（`test` stage）— 本体 LINE/BRANCH 85% フラット、`e2e` stage で `-Pe2e` の LINE/BRANCH 95% に引き上げ（詳細は ADR-004）
-- Playwright E2E（`e2e` stage）— ログイン→申請→承認→一覧確認
+- Playwright E2E（`e2e` stage）— タスク作成→一覧確認→完了、および業務エラー3経路（バリデーション/回復可/回復不可）の遷移確認
 - k6 スモーク（`perf` stage）— 一覧 GET、VUs=5、duration=30s
 
 ## ローカルで CI を再現
