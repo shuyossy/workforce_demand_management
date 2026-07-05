@@ -3,11 +3,18 @@ import { test, expect } from '@playwright/test';
 // 例外処理からのページ遷移を JSF ライフサイクル経由で実通過させる（本プロジェクトでは E2E でしか通らない経路）。
 test.describe('Exception handling (JSF exception handler wiring)', () => {
   // (a) バリデーションエラー: タイトル未入力 → 現画面(new)に留置 + globalMessages。
-  test('required-field validation stays on new.xhtml with a global message', async ({ page }) => {
+  test('required-field validation stays on new.xhtml with a single global message', async ({
+    page,
+  }) => {
     await page.goto('tasks/new.xhtml');
     await page.click('button:has-text("作成")');
     await expect(page).toHaveURL(/tasks\/new\.xhtml/);
     await expect(page.locator('.ui-messages-error').first()).toBeVisible();
+    // 2 重表示防止（PBI ID:1 指摘事項）: 検証メッセージは detail 1 件のみを表示し、
+    // summary（既定では detail と同一文字列）は描画しないこと。
+    await expect(page.locator('.ui-messages-error-detail')).toHaveCount(1);
+    await expect(page.locator('.ui-messages-error-detail')).toContainText('値が必要です');
+    await expect(page.locator('.ui-messages-error-summary')).toHaveCount(0);
   });
 
   // (b) 業務エラー(回復可): 2 タブ stale 二重完了 → 現画面(list)に留置 + 業務メッセージ、error.xhtml へ遷移しない。
@@ -43,6 +50,13 @@ test.describe('Exception handling (JSF exception handler wiring)', () => {
     await expect(pageA).toHaveURL(/tasks\/list\.xhtml/);
     await expect(pageA.getByText('既に完了したタスクです')).toBeVisible();
     await expect(pageA.getByText('エラーが発生しました')).toHaveCount(0);
+    // 2 重表示防止（PBI ID:1 指摘事項）: 業務メッセージは detail 1 件のみを表示し、
+    // 汎用 summary（"エラー"）は描画しないこと。
+    await expect(pageA.locator('.ui-messages-error-detail')).toHaveCount(1);
+    await expect(pageA.locator('.ui-messages-error-detail')).toContainText(
+      '既に完了したタスクです',
+    );
+    await expect(pageA.locator('.ui-messages-error-summary')).toHaveCount(0);
 
     await ctxA.close();
     await ctxB.close();

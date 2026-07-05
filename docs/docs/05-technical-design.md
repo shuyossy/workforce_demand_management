@@ -236,6 +236,11 @@ ExceptionFacesResponseHandler#handleErrorResponse()
 - **別の標準 ErrorCode に切り替えたい場合** は `.overrideErrorCode(ErrorCode.XXX)` を使う。新規切り替え時は `default.properties` に `exceptionhandler.{errorCode}.message` と `.httpstatus` を追加する。
 - **`messages.properties` との使い分け**：`messages.properties` は JUL ロガー（`RcbLogFormatter`）経由のログ出力用。ユーザ向け応答メッセージは `default.properties` の `exceptionhandler.*` 配下に集約する（経路が別）。
 
+### メッセージ表示コンポーネント（`globalMessages`）
+
+- ユーザ向け `FacesMessage` は画面テンプレート `WEB-INF/templates/main.xhtml` の唯一の `<p:messages id="globalMessages">` で一元表示する（各画面に `<p:messages>` を置かない）。
+- `<p:messages>` は **`showSummary="false"` / `showDetail="true"`** を明示し、**detail のみ**を 1 行表示する。理由: `<p:messages>` は既定で summary と detail を両方描画するが、JSF 標準検証メッセージは summary と detail が同一文字列（例 `UIInput.REQUIRED` と `..REQUIRED_detail`）のため両方描画すると同じ文が 2 回表示され、`ExceptionFacesResponseHandler` の業務エラーも summary=汎用ラベル「エラー」＋ detail=業務本文の 2 行になる。意味のある本文は常に detail 側にあるため detail へ一本化する（`FacesMessage` を新規に追加する際も業務本文は detail に載せること）。
+
 ### catch 規約
 
 - **バッキングビーンで `MSTBusinessException` / `MSTBusinessNonRecoverException` を try-catch しない**。`ExceptionFacesResponseHandler` が一括処理するため重複となる。`return null` も不要（例外時は JSF が action navigation を実行せず現画面に留まる）。

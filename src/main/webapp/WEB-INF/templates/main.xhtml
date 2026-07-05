@@ -24,7 +24,13 @@
         </p:menubar>
       </h:form>
 
-      <p:messages id="globalMessages" showDetail="true" closable="true" />
+      <!--
+        <p:messages> は既定で summary/detail を両方描画する。JSF 標準検証メッセージは summary と detail が
+        同一文字列のため同じ文が 2 回表示され、業務/成功メッセージも汎用 summary("エラー"/"登録") + 本文の 2 行になる。
+        意味のある本文は常に detail 側にあるため showSummary="false" で summary を抑止し、detail を 1 行だけ表示する。
+        これにより全メッセージ経路の「2 重表示」を解消する。
+      -->
+      <p:messages id="globalMessages" showSummary="false" showDetail="true" closable="true" />
 
       <div class="content">
         <ui:insert name="content" />
