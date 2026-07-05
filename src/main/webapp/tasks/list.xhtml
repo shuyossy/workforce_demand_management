@@ -20,10 +20,7 @@
         <p:column headerText="ID">#{t.id}</p:column>
         <p:column headerText="タイトル">#{t.title}</p:column>
         <p:column headerText="状態">
-          <h:outputText
-            value="#{t.status}"
-            styleClass="status-#{t.status.name().toLowerCase()}"
-          />
+          <h:outputText value="#{t.status}" styleClass="status-#{t.status.name().toLowerCase()}" />
         </p:column>
         <p:column headerText="作成日時">#{t.createdAt}</p:column>
         <p:column headerText="操作">
