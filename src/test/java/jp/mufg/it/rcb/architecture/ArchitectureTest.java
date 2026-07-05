@@ -40,8 +40,7 @@ class ArchitectureTest {
   /**
    * ドメイン層は java / lombok / userinfo.dto 以外に依存してはならない.
    *
-   * <p>本タスク（骨格化）時点では {@code domain} 配下にクラスが存在せず、対象クラス 0 件でルール評価が空になるため {@code
-   * allowEmptyShould(true)} で許容する。以降のタスクで task 用ドメインクラスが追加されれば通常どおり検査される。
+   * <p>strip-sample.md でサンプル削除後に domain 配下が 0 件になってもルール評価がエラーにならないよう空許容（クラスが存在する間は通常どおり境界を強制）。
    */
   @Test
   void domainPurity() {
@@ -73,8 +72,7 @@ class ArchitectureTest {
   /**
    * Inbound アダプタは Outbound アダプタに依存してはならない.
    *
-   * <p>本タスク（骨格化）時点では {@code adapter.in} / {@code adapter.out} 配下にクラスが存在せず、対象クラス 0 件でルール評価が空になるため
-   * {@code allowEmptyShould(true)} で許容する。以降のタスクで task 用アダプタが追加されれば通常どおり検査される。
+   * <p>strip-sample.md でサンプル削除後に adapter 配下が 0 件になってもルール評価がエラーにならないよう空許容（クラスが存在する間は通常どおり境界を強制）。
    */
   @Test
   void adapterInputDoesNotDependOnAdapterOutput() {
@@ -106,8 +104,7 @@ class ArchitectureTest {
   /**
    * ドメイン層は永続化 API（jakarta.persistence）に依存してはならない.
    *
-   * <p>本タスク（骨格化）時点では {@code domain} 配下にクラスが存在せず、対象クラス 0 件でルール評価が空になるため {@code
-   * allowEmptyShould(true)} で許容する。以降のタスクで task 用ドメインクラスが追加されれば通常どおり検査される。
+   * <p>strip-sample.md でサンプル削除後に domain 配下が 0 件になってもルール評価がエラーにならないよう空許容（クラスが存在する間は通常どおり境界を強制）。
    */
   @Test
   void domainHasNoPersistenceDependency() {

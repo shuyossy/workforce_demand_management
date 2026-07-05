@@ -93,7 +93,7 @@ class RcbLogFormatterTest {
   void formatIncludesMdcValues() {
     MDC.put("requestId", "abcd1234");
     MDC.put("empNum", "E0001");
-    final LogRecord record = newRecord(Level.INFO, "RCB00004-I", "E0001");
+    final LogRecord record = newRecord(Level.INFO, "RCB00002-I", "E0001");
     final String output = formatter.format(record);
     assertTrue(output.contains("[abcd1234][E0001]"));
   }
@@ -109,7 +109,7 @@ class RcbLogFormatterTest {
   /** Level.WARNING は出力上 {@code WARN } に短縮される（WildFly pattern と整合）. */
   @Test
   void formatMapsWarningLevelToWarn() {
-    final LogRecord record = newRecord(Level.WARNING, "RCB00101-W");
+    final LogRecord record = newRecord(Level.WARNING, "RCB00002-I");
     final String output = formatter.format(record);
     assertTrue(output.contains(" WARN  ["));
     assertFalse(output.contains("WARNING"));
