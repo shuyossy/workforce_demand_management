@@ -26,6 +26,20 @@
       <base-name>message</base-name>
       <var>msg</var>
     </resource-bundle>
+
+    <!--
+      ExceptionFacesResponseHandler が HTTP ステータス別のリダイレクト先を解決するためのエントリ。
+      handler は getElementsByTagName("entry") で key=error.page.{status} / error.page.default を走査する。
+      回復不可の業務エラー(500)・想定外例外(500) はここで /error.xhtml に着地する。
+    -->
+    <entry>
+      <key>error.page.500</key>
+      <value>/error.xhtml</value>
+    </entry>
+    <entry>
+      <key>error.page.default</key>
+      <value>/error.xhtml</value>
+    </entry>
   </application>
 
 </faces-config>
