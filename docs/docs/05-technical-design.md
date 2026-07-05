@@ -414,6 +414,6 @@ sequenceDiagram
 | 単体のみ                                   | `./mvnw -Pfast test`                                                  |
 | 単体 + 結合（pre-push Phase 1 相当）       | `./mvnw -Pfast clean verify`                                          |
 | 単体 + 結合 + E2E（pre-push Phase 2 相当） | `./mvnw -Pe2e verify`                                                 |
-| カバレッジ閾値チェック（CI と同じ）        | `./mvnw -Pci-mr jacoco:report jacoco:check`                           |
+| カバレッジ閾値チェック（CI と同じ）        | `./mvnw -Pci-mr jacoco:report@report jacoco:check@check-coverage`     |
 | レポート HTML 確認                         | `open target/site/jacoco/index.html` / `tests/e2e/playwright-report/` |
 | 性能スモーク                               | `k6 run tests/perf/smoke.js`                                          |

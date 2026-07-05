@@ -139,7 +139,7 @@ coverage:java:
     # JaCoCo の層別カバレッジ閾値は pom.xml `ci-mr` profile の <rules> で定義する。
     # -Pe2e の check-layered-coverage-e2e は WildFly 起動を要するためここでは呼ばず、
     # e2e:playwright ジョブで既に hard gate 通過済みの merged exec を report として再描画する。
-    - ./mvnw $MAVEN_CLI_OPTS -Pci-mr jacoco:report jacoco:check
+    - ./mvnw $MAVEN_CLI_OPTS -Pci-mr jacoco:report@report jacoco:check@check-coverage
 
 secret:gitleaks:
   stage: quality

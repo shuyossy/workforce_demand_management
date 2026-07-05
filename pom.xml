@@ -894,7 +894,6 @@
 
 						<!-- クラス単位例外（コンテナ依存）。本体では計測不可、-Pe2e で復活させて計測する。
 						     追加・削除する場合は ADR-004 の例外台帳を必ず更新すること。 -->
-						<exclude>jp/mufg/it/rcb/shared/web/AuthenticationFilter.class</exclude>
 						<exclude>jp/mufg/it/rcb/shared/web/AccessLogFilter.class</exclude>
 						<exclude>jp/mufg/it/rcb/shared/web/RequestEncodingFilter.class</exclude>
 					</excludes>
