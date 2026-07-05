@@ -414,6 +414,10 @@
 								<exclude>jp/mufg/it/rcb/log/formatter/**/*.class</exclude>
 								<exclude>jp/mufg/it/rcb/exception/**/*.class</exclude>
 								<exclude>jp/mufg/it/rcb/userinfo/**/*.class</exclude>
+
+								<!-- -Pe2e でも到達不能と判明したクラス単位例外。根拠は ADR-004 の
+								     「-Pe2e でも除外」節を参照。 -->
+								<exclude>jp/mufg/it/rcb/shared/web/AccessLogFilter.class</exclude>
 							</excludes>
 						</configuration>
 						<executions>
@@ -892,6 +896,7 @@
 						     追加・削除する場合は ADR-004 の例外台帳を必ず更新すること。 -->
 						<exclude>jp/mufg/it/rcb/shared/web/AuthenticationFilter.class</exclude>
 						<exclude>jp/mufg/it/rcb/shared/web/AccessLogFilter.class</exclude>
+						<exclude>jp/mufg/it/rcb/shared/web/RequestEncodingFilter.class</exclude>
 					</excludes>
 				</configuration>
 				<executions>

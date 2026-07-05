@@ -147,4 +147,19 @@ class AppUrlBuilderTest {
         invokeWithFakeRequest(builder, "/list.xhtml", "https", "app.example.com", 443, "/rcb");
     assertThat(url).isEqualTo("https://app.example.com/rcb/list.xhtml");
   }
+
+  /**
+   * FacesContext あり + https+8443（非標準ポート）: host:port が結合される.
+   *
+   * <p>{@code scheme}/{@code port} の 4 条件のうち "https" かつ非標準ポート" の組合せのみ他のテストで踏めていなかったため、
+   * 分岐網羅の補完として追加する。
+   */
+  @Test
+  void buildsAbsoluteUrlFromFacesContextWithHttpsNonStandardPort() {
+    final AppUrlBuilder builder = new AppUrlBuilder();
+    setExternalBaseUrl(builder, null);
+    final String url =
+        invokeWithFakeRequest(builder, "/list.xhtml", "https", "app.example.com", 8443, "/rcb");
+    assertThat(url).isEqualTo("https://app.example.com:8443/rcb/list.xhtml");
+  }
 }

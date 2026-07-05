@@ -1,6 +1,7 @@
 package jp.mufg.it.rcb.adapter.out.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
@@ -129,5 +130,17 @@ class TaskRepositoryAdapterIT {
     final Task reloaded = adapter.findById(saved[0].getId()).orElseThrow();
     assertThat(reloaded.getStatus()).isEqualTo(TaskStatus.DONE);
     assertThat(reloaded.getCompletedAt()).isEqualTo(Instant.parse("2026-07-03T10:00:00Z"));
+  }
+
+  /** save() の更新経路：存在しない ID を持つ Task を渡すと防御的に例外を投げる（データ不整合の想定外系）. */
+  @Test
+  void saveThrowsWhenUpdatingNonExistentEntity() {
+    final Task ghost =
+        Task.reconstruct(
+            999_999L, "存在しない", TaskStatus.TODO, Instant.parse("2026-07-03T09:00:00Z"), null);
+
+    assertThatThrownBy(() -> JpaTestSupport.runInTx(em, () -> adapter.save(ghost)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("999999");
   }
 }
