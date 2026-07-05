@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
+<ui:composition
+  template="/WEB-INF/templates/main.xhtml"
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:ui="jakarta.faces.facelets"
+  xmlns:h="jakarta.faces.html"
+  xmlns:p="http://primefaces.org/ui"
+>
+  <ui:define name="content">
+    <h:form id="formNew">
+      <p:panel header="タスク新規作成">
+        <!-- メッセージ表示（必須検証・業務エラー）はテンプレート main.xhtml の globalMessages に一本化 -->
+        <div class="form-row">
+          <p:outputLabel for="title" value="タイトル:" />
+          <p:inputText
+            id="title"
+            value="#{taskFormBean.title}"
+            required="true"
+            maxlength="100"
+            size="40"
+          />
+        </div>
+
+        <p:commandButton value="作成" action="#{taskFormBean.create}" ajax="false" />
+        <p:link outcome="/tasks/list.xhtml" value="キャンセル" />
+      </p:panel>
+    </h:form>
+  </ui:define>
+</ui:composition>

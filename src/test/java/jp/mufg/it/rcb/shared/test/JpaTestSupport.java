@@ -15,6 +15,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Map;
 
 // 抑制理由:
 //  - PMD.AvoidCatchingGenericException: トランザクション境界では原因種別に依らず
@@ -41,7 +42,9 @@ public final class JpaTestSupport {
    * H2 にスキーマを作成し EntityManagerFactory を生成する.
    *
    * <p>DDL ファイルは classpath ルートからの絶対パスで指定する（例: {@code "/db/migration/V1__create_xxx.sql"}）。指定順に
-   * DriverManager 経由で 一括 execute する。
+   * DriverManager 経由で 一括 execute する。テスト IT クラスごとに異なる mem DB 名を指定すれば、同一 JVM フォーク内で 他クラスの DDL /
+   * データと衝突せず独立した DB を持てる（{@code jakarta.persistence.jdbc.url} を persistence.xml の
+   * 既定値に対して明示的に上書きするため）。
    *
    * @param persistenceUnitName persistence.xml に定義された PU 名
    * @param jdbcUrl H2 接続 URL（例: {@code jdbc:h2:mem:xxx;MODE=PostgreSQL;DB_CLOSE_DELAY=-1}）
@@ -59,7 +62,8 @@ public final class JpaTestSupport {
         statement.execute(readResource(resourcePath));
       }
     }
-    return Persistence.createEntityManagerFactory(persistenceUnitName);
+    return Persistence.createEntityManagerFactory(
+        persistenceUnitName, Map.of("jakarta.persistence.jdbc.url", jdbcUrl));
   }
 
   /**
