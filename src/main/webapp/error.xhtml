@@ -10,6 +10,15 @@
     <h:outputStylesheet library="css" name="app.css" />
   </h:head>
   <h:body>
+    <!--
+      回復不可の業務エラー / 想定外例外は ExceptionFacesResponseHandler が
+      具体的なエラー本文を FacesMessage として追加し flash に退避（setKeepMessages）
+      した上で本ページへリダイレクトする。その本文を描画する受け皿として
+      main.xhtml と同一設定の p:messages を置く（showSummary=false/showDetail=true で
+      2 重表示防止方針を踏襲）。flash に本文が無い経路（コンテナ error-page 経由の
+      生 Throwable/404/500）では何も描画されず、下の固定文言のみが表示される。
+    -->
+    <p:messages id="globalMessages" showSummary="false" showDetail="true" closable="true" />
     <h:form>
       <p:panel header="エラーが発生しました">
         <p>

@@ -90,6 +90,15 @@ test.describe('Exception handling (JSF exception handler wiring)', () => {
     // faces-config の error.page.500 経由で error.xhtml に全画面遷移する。
     await expect(page).toHaveURL(/error\.xhtml/);
     await expect(page.getByText('エラーが発生しました')).toBeVisible();
+    // 具体的なエラー本文が表示されること（ハンドラが flash 退避した FacesMessage を
+    // error.xhtml の globalMessages が描画する経路の実通過検証）。
+    // CompleteTaskService が MSTBusinessNonRecoverException の user メッセージに渡す文言。
+    await expect(page.getByText('指定されたタスクが見つかりません')).toBeVisible();
+    // main.xhtml 経路と同様、業務メッセージは detail 1 件のみで summary は描画しない。
+    await expect(page.locator('.ui-messages-error-detail')).toContainText(
+      '指定されたタスクが見つかりません',
+    );
+    await expect(page.locator('.ui-messages-error-summary')).toHaveCount(0);
     // 戻りリンクからタスク一覧へ戻れる。
     await page.click('a:has-text("タスク一覧へ戻る")');
     await expect(page).toHaveURL(/tasks\/list\.xhtml/);

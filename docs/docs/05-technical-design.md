@@ -239,6 +239,7 @@ ExceptionFacesResponseHandler#handleErrorResponse()
 ### メッセージ表示コンポーネント（`globalMessages`）
 
 - ユーザ向け `FacesMessage` は画面テンプレート `WEB-INF/templates/main.xhtml` の唯一の `<p:messages id="globalMessages">` で一元表示する（各画面に `<p:messages>` を置かない）。
+  - **例外**: `error.xhtml` は `main.xhtml` テンプレートを流用しない独立ページ（コンテナ `<error-page>` 経由で深刻な障害時にも到達しうるため軽量・堅牢に保つ）であり、`main.xhtml` の `globalMessages` を受け取れない。回復不可の業務エラー / 想定外例外時に `ExceptionFacesResponseHandler` が flash 退避（`setKeepMessages(true)`）した具体的なエラー本文を表示する受け皿として、`error.xhtml` にも同一設定の `<p:messages id="globalMessages">` を個別に配置する（描画コンポーネントが無いと本文が flash に載っていても表示されない）。
 - `<p:messages>` は **`showSummary="false"` / `showDetail="true"`** を明示し、**detail のみ**を 1 行表示する。理由: `<p:messages>` は既定で summary と detail を両方描画するが、JSF 標準検証メッセージは summary と detail が同一文字列（例 `UIInput.REQUIRED` と `..REQUIRED_detail`）のため両方描画すると同じ文が 2 回表示され、`ExceptionFacesResponseHandler` の業務エラーも summary=汎用ラベル「エラー」＋ detail=業務本文の 2 行になる。意味のある本文は常に detail 側にあるため detail へ一本化する（`FacesMessage` を新規に追加する際も業務本文は detail に載せること）。
 
 ### catch 規約
