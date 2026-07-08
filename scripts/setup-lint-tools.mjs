@@ -33,9 +33,15 @@ function resolveMaven() {
 function runMavenLintSetup() {
   const mvn = resolveMaven();
   console.log('[setup-lint-tools] Resolving lint tool jars via Maven...');
-  const result = spawnSync(mvn, ['-Plint-setup', 'initialize', '-q'], {
+  // Windows では `mvnw.cmd`（バッチ）を直接 spawn すると Node 20.12+/22 のセキュリティ修正
+  // により EINVAL になるため `shell: true` を付与する。shell 経由時はパスに空白が含まれても
+  // 壊れないよう実行ファイル側を明示的に quote する（args 側は空白を含まないので素のまま）。
+  const useShell = process.platform === 'win32';
+  const command = useShell ? `"${mvn}"` : mvn;
+  const result = spawnSync(command, ['-Plint-setup', 'initialize', '-q'], {
     cwd: PROJECT_ROOT,
     stdio: 'inherit',
+    shell: useShell,
   });
   if (result.status !== 0) {
     console.error('[setup-lint-tools] ./mvnw -Plint-setup initialize failed.');

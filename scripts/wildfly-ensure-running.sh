@@ -19,6 +19,13 @@ DEBUG_PORT="${WILDFLY_DEBUG_PORT:-8787}"
 E2E_MODE="${E2E_MODE:-0}"
 JACOCO_AGENT_JAR="${JACOCO_AGENT_JAR:-}"
 JACOCO_E2E_EXEC="${JACOCO_E2E_EXEC:-}"
+# Windows(git bash) では Maven がバックスラッシュ区切りの Windows パスを環境変数で渡す。
+# これを後段で standalone.sh の未クオート `$JAVA_OPTS` 展開へ載せると、java 起動時に
+# バックスラッシュが失われて `-javaagent` の JAR を開けなくなる（Error opening zip file）。
+# java はスラッシュ区切りの Windows パスも解釈できるため、ここでスラッシュへ正規化しておく
+# （mac/Linux のパスはバックスラッシュを含まないので実質 no-op）。
+JACOCO_AGENT_JAR="${JACOCO_AGENT_JAR//\\//}"
+JACOCO_E2E_EXEC="${JACOCO_E2E_EXEC//\\//}"
 JACOCO_E2E_PORT="${JACOCO_E2E_PORT:-6300}"
 USER_NAME="${WILDFLY_USER:-admin}"
 PASS="${WILDFLY_PASSWORD:-admin}"
@@ -49,12 +56,22 @@ wait_for_mgmt() {
 }
 
 is_port_in_use() {
-  # Mac/Linux 共通で動く lsof ベース。lsof が無ければ nc にフォールバック。
+  local port="$1"
+  # Mac/Linux は lsof を優先（従来挙動を維持）。lsof が無い環境（Windows git bash 等）は
+  # bash の /dev/tcp で localhost 接続可否を見て LISTEN 判定する。/dev/tcp も使えない場合のみ
+  # nc にフォールバックし、いずれも無ければ「未使用」とみなす。
   if command -v lsof > /dev/null 2>&1; then
-    lsof -nP -iTCP:"$1" -sTCP:LISTEN > /dev/null 2>&1
-  else
-    nc -z localhost "$1" > /dev/null 2>&1
+    lsof -nP -iTCP:"$port" -sTCP:LISTEN > /dev/null 2>&1
+    return
   fi
+  if (exec 3<> "/dev/tcp/127.0.0.1/${port}") > /dev/null 2>&1; then
+    return 0
+  fi
+  if command -v nc > /dev/null 2>&1; then
+    nc -z localhost "$port" > /dev/null 2>&1
+    return
+  fi
+  return 1
 }
 
 # 既に management ポートが開いているときの分岐：

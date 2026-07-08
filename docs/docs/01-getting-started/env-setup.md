@@ -28,6 +28,19 @@ createuser rcb -P  # パスワードを設定
 
 どちらのモードでも `-b 0.0.0.0 -bmanagement 0.0.0.0` で起動するため、社内ネットワーク内の別マシンからも `http://<開発機 IP>:8080/rcb/` でアクセス可能。
 
+## Windows（git bash）で利用する場合
+
+Windows では **git bash（MSYS2/MINGW）を利用する前提**。`./mvnw` / `scripts/*.sh` / husky hook はいずれも git bash 上でそのまま動作し、`-Pfast clean verify` / `-Pe2e verify` / アプリ起動・アクセスまで Linux/mac と同一のコマンドで実行できる。以下は Windows 固有の前提と、リポジトリ側で吸収済みの差異。
+
+- **前提**
+  - `java`（JDK 17）・`node`・`git bash`・`curl` に PATH が通っていること（`lsof` / `nc` は不要）。
+  - ローカル WildFly モードを使う場合、`.env` の `WILDFLY_HOME` に Windows パスを指定してよい（例: `WILDFLY_HOME="C:\Users\<user>\wildfly-32.0.1.Final"`。バックスラッシュ可）。WildFly 本体は Maven Central の `org.wildfly:wildfly-dist:32.0.1.Final:zip` からも取得できる。
+- **リポジトリ側で吸収済みの Windows 差異**（利用者の追加操作は不要）
+  - `scripts/with-env.sh` が `MSYS2_ENV_CONV_EXCL` を設定し、`APP_CONTEXT_ROOT=/rcb` が MSYS のパス自動変換で壊れる（→ コンテキストルート不正で 404）事象を回避。
+  - `scripts/wildfly-ensure-running.sh` がポート使用判定を `lsof` 非搭載環境向けに bash `/dev/tcp` へフォールバックし、`-Pe2e` の JaCoCo agent パスをスラッシュへ正規化。
+  - `scripts/setup-lint-tools.mjs` が Windows のみ `mvnw.cmd` を `shell` 経由で起動（Node のバッチ実行制限を回避）。
+  - `.gitattributes` がシェルスクリプトを LF 固定にし、CRLF 混入による bash 起動失敗を防止。
+
 ## 変数の役割
 
 主要な変数：
