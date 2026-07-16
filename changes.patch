@@ -1,182 +1,199 @@
-diff --git a/.env.example b/.env.example
-index 6157d17..73c1543 100644
---- a/.env.example
-+++ b/.env.example
-@@ -11,6 +11,8 @@ DB_PASSWORD=rcb
- #     （-b 0.0.0.0 -bmanagement 0.0.0.0 --debug *:${WILDFLY_DEBUG_PORT}）。
- #     PID / ログは .dev-runtime/ 配下。
- # WILDFLY_HOME=/opt/wildfly-32.0.1.Final
-+#   Windows(git bash) の場合は Windows パスを指定してよい（バックスラッシュ可）:
-+#   WILDFLY_HOME="C:\Users\<user>\wildfly-32.0.1.Final"
+diff --git a/docs/docs/01-getting-started/strip-sample.md b/docs/docs/01-getting-started/strip-sample.md
+index 1502d0a..3b36e4d 100644
+--- a/docs/docs/01-getting-started/strip-sample.md
++++ b/docs/docs/01-getting-started/strip-sample.md
+@@ -59,7 +59,7 @@ rm src/test/java/jp/mufg/it/rcb/shared/web/SystemClockAdapterTest.java
  
- # WildFly 接続情報（Docker Compose では admin/admin がコンテナに焼き込み済。
- # ローカル WildFly モードでは wildfly-local-setup.sh が同じ値で add-user する）
-diff --git a/.gitattributes b/.gitattributes
-index 3b41682..e93799a 100644
---- a/.gitattributes
-+++ b/.gitattributes
-@@ -1,2 +1,9 @@
- /mvnw text eol=lf
- *.cmd text eol=crlf
-+# シェルスクリプトは全プラットフォームで LF を強制する。
-+# CRLF が混入すると Linux/mac の bash や git-bash がシバン解釈に失敗して壊れるため、
-+# Windows(core.autocrlf 設定を問わず)でも常に LF でチェックアウトさせる。
-+*.sh text eol=lf
-+.husky/pre-commit text eol=lf
-+.husky/pre-push text eol=lf
-+.husky/commit-msg text eol=lf
-diff --git a/.prettierrc.json b/.prettierrc.json
-index 90776a7..44024d3 100644
---- a/.prettierrc.json
-+++ b/.prettierrc.json
-@@ -5,5 +5,5 @@
-   "semi": true,
-   "singleQuote": true,
-   "trailingComma": "all",
--  "endOfLine": "lf"
-+  "endOfLine": "auto"
- }
-diff --git a/PBI.md b/PBI.md
-index 1764a08..c625ba6 100644
---- a/PBI.md
-+++ b/PBI.md
-@@ -12,16 +12,22 @@
+ ```bash
+ rm src/main/resources/db/migration/V1__init.sql
+-rm src/main/resources/db/migration/R__dev_seed.sql
++rm src/main/resources/db/dev-bootstrap/R__dev_seed.sql
+ rm -rf src/main/webapp/tasks
+ ```
  
- # ID: 1
+diff --git a/docs/docs/05-technical-design.md b/docs/docs/05-technical-design.md
+index 671e8a7..b281284 100644
+--- a/docs/docs/05-technical-design.md
++++ b/docs/docs/05-technical-design.md
+@@ -115,12 +115,23 @@ domain は外部依存ゼロ（java 標準 + Lombok のみ）
  
--- PBI名: サンプルアプリの簡略化
-+- PBI名: windows対応
- - ステータス: done
- - 背景
--  - 認証機能が不要の場合もあるので、そちらに合わせたい
-+  - 本ボイラープレートはこれまでmacで作成していたが、実際に導入する際はmacに限らず、windowsの場合もある
-+  - そこで開発環境をwindowsに移し、windowsでも動作するように見直すこととする
- - 受け入れ基準
--  - 現状のサンプルアプリが完全に削除されている
--  - 新たに認証機能不要のサンプルアプリが作成されている
--    - あくまでサンプルなので、簡潔なアプリとすること
--    - ロギング、例外処理を盛り込むこと
--      - 特に例外処理からのページ遷移は結合テストorE2Eテストで確認すること
--  - 上記に合わせてドキュメントが更新されていること
-+  - 本windows環境でビルド、テスト（verify※e2eプロファイル）、アプリ立ち上げ＆アクセスができることを確認すること
-+    - windows環境ではgit bashを利用する前提とすること
-+  - linux,mac,windows全てで動作するようにすること
- - 注意事項
--  - 全体をよく把握して、サンプルを完全に置き換えること
-+  - 現在claude codeを起動している環境はwindowsのgit bashである
-+  - 変更はできるだけ最小限とし、別環境へ影響を及ぼさないように注意する
-+- 対応内容（windows git bash で `-Pfast clean verify` / `-Pe2e verify` / アプリ起動・アクセスを実機確認済み。すべて mac/Linux に影響しない後方互換な修正）
-+  - `scripts/setup-lint-tools.mjs`: Node 20.12+/22 のセキュリティ修正で `mvnw.cmd`（バッチ）を `spawnSync` すると EINVAL になるため、Windows のみ `shell: true`＋実行ファイルの quote を付与
-+  - `scripts/wildfly-ensure-running.sh`:
-+    - `is_port_in_use` を lsof 無し環境（git bash）向けに bash `/dev/tcp` フォールバック対応（lsof→/dev/tcp→nc の順）
-+    - JaCoCo agent の Windows パス（バックスラッシュ）を standalone.sh の未クオート `$JAVA_OPTS` 展開でも壊れないようスラッシュへ正規化（`Error opening zip file` の解消）
-+  - `scripts/with-env.sh`: MSYS が `APP_CONTEXT_ROOT=/rcb` を Windows パス（`C:/Program Files/Git/rcb`）へ自動変換してコンテキストルートが壊れ 404 になるのを、`MSYS2_ENV_CONV_EXCL` で変換対象から除外して回避
-+  - `.gitattributes`: シェルスクリプト（`*.sh` / husky hook）を全プラットフォームで LF 強制（CRLF 混入による bash 起動失敗を防止）
-diff --git a/docs/docs/01-getting-started/env-setup.md b/docs/docs/01-getting-started/env-setup.md
-index ec2d327..35c9f8a 100644
---- a/docs/docs/01-getting-started/env-setup.md
-+++ b/docs/docs/01-getting-started/env-setup.md
-@@ -28,6 +28,19 @@ createuser rcb -P  # パスワードを設定
+ ### Flyway 運用
  
- どちらのモードでも `-b 0.0.0.0 -bmanagement 0.0.0.0` で起動するため、社内ネットワーク内の別マシンからも `http://<開発機 IP>:8080/rcb/` でアクセス可能。
+-| 種別                 | パス                                              | 用途                                                                           |
+-| -------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------ |
+-| バージョン migration | `src/main/resources/db/migration/V<n>__*.sql`     | 本番・開発・E2E 共通（PostgreSQL / H2 両対応の SQL 標準構文）                  |
+-| 開発・E2E 用シード   | `src/main/resources/db/migration/R__dev_seed.sql` | Flyway repeatable migration として `flyway:migrate` で常に再実行（冪等性確保） |
++| 種別                 | パス                                                  | 用途                                                                                                                                                                       |
++| -------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
++| バージョン migration | `src/main/resources/db/migration/V<n>__*.sql`         | 本番・開発・E2E 共通（PostgreSQL / H2 両対応の SQL 標準構文）                                                                                                              |
++| 開発・E2E 用シード   | `src/main/resources/db/dev-bootstrap/R__dev_seed.sql` | Flyway repeatable migration（冪等）。本番共通の `db/migration` から分離し、`-Pe2e` プロファイルの flyway 実行が `locations` に `db/dev-bootstrap` を追加したときのみ流れる |
  
-+## Windows（git bash）で利用する場合
+-E2E プロファイル (`-Pe2e`) では `target/h2/app-e2e` の H2 ファイル DB に対して同じ `db/migration` を流す。本番 PostgreSQL / IT / E2E H2 のいずれでも同一ファイル群が走るため、DDL は SQL 標準構文（`BIGINT GENERATED BY DEFAULT AS IDENTITY` 等）に統一している。本番運用で seed を流したくない場合は `R__dev_seed.sql` を除外する Flyway `locations` を別途設定すること。
++E2E プロファイル (`-Pe2e`) では `target/h2/app-e2e` の H2 ファイル DB に対して、**2 つの flyway 実行を履歴テーブル単位で分離**して流す。DDL は本番 PostgreSQL / IT / E2E H2 のいずれでも同一構文で走るよう SQL 標準構文（`BIGINT GENERATED BY DEFAULT AS IDENTITY` 等）に統一している。
 +
-+Windows では **git bash（MSYS2/MINGW）を利用する前提**。`./mvnw` / `scripts/*.sh` / husky hook はいずれも git bash 上でそのまま動作し、`-Pfast clean verify` / `-Pe2e verify` / アプリ起動・アクセスまで Linux/mac と同一のコマンドで実行できる。以下は Windows 固有の前提と、リポジトリ側で吸収済みの差異。
++| flyway 実行                        | locations          | 履歴テーブル                          | 対象                                                      |
++| ---------------------------------- | ------------------ | ------------------------------------- | --------------------------------------------------------- |
++| `e2e-flyway-migrate`               | `db/migration`     | `flyway_schema_history`（既定）       | アプリ所有スキーマ `V*`                                   |
++| `e2e-flyway-migrate-dev-bootstrap` | `db/dev-bootstrap` | `flyway_schema_history_dev_bootstrap` | 開発/E2E 専用 seed `R__`（将来は共通ライブラリ DDL `V*`） |
 +
-+- **前提**
-+  - `java`（JDK 17）・`node`・`git bash`・`curl` に PATH が通っていること（`lsof` / `nc` は不要）。
-+  - ローカル WildFly モードを使う場合、`.env` の `WILDFLY_HOME` に Windows パスを指定してよい（例: `WILDFLY_HOME="C:\Users\<user>\wildfly-32.0.1.Final"`。バックスラッシュ可）。WildFly 本体は Maven Central の `org.wildfly:wildfly-dist:32.0.1.Final:zip` からも取得できる。
-+- **リポジトリ側で吸収済みの Windows 差異**（利用者の追加操作は不要）
-+  - `scripts/with-env.sh` が `MSYS2_ENV_CONV_EXCL` を設定し、`APP_CONTEXT_ROOT=/rcb` が MSYS のパス自動変換で壊れる（→ コンテキストルート不正で 404）事象を回避。
-+  - `scripts/wildfly-ensure-running.sh` がポート使用判定を `lsof` 非搭載環境向けに bash `/dev/tcp` へフォールバックし、`-Pe2e` の JaCoCo agent パスをスラッシュへ正規化。
-+  - `scripts/setup-lint-tools.mjs` が Windows のみ `mvnw.cmd` を `shell` 経由で起動（Node のバッチ実行制限を回避）。
-+  - `.gitattributes` がシェルスクリプトを LF 固定にし、CRLF 混入による bash 起動失敗を防止。
++本番／ローカル共用の env 駆動デフォルト flyway-maven-plugin は `locations=db/migration` のみを走査するため、`db/dev-bootstrap` 配下は本番では流れない（本番安全側）。
 +
- ## 変数の役割
++**履歴テーブルを分離する理由**: Flyway は 1 つの `flyway_schema_history` ＝ 1 本のバージョン時系列として、そのテーブルに紐づく全 location を横断で束ねる。将来 `db/dev-bootstrap` に社内ライブラリ共通 DB の開発用 DDL（ライブラリ側が独自採番した `V*`）を足す際、アプリ所有スキーマの `V*` と同一履歴テーブルに束ねると同一バージョン番号で `Found more than one migration with version` エラーになる、あるいは系譜が混線してライブラリ更新時に衝突する。両者を独立した履歴テーブルで管理することでバージョン系譜を分離する。
++
++**`e2e-flyway-migrate-dev-bootstrap` に `baselineOnMigrate=true` + `baselineVersion=0` が必須な理由**: `e2e-flyway-migrate`（app schema）が先に走って `task` 等を作るため、dev-bootstrap 実行の時点で schema `public` は既に非空になっている。一方で専用履歴テーブル `flyway_schema_history_dev_bootstrap` はこの実行で初めて作られるため、Flyway の安全ガード「非空スキーマ かつ 履歴テーブル無しの migrate は拒否（`Found non-empty schema but no schema history table`）」に掛かる。これを許可するのが `baselineOnMigrate=true`。ただし既定の `baselineVersion=1` だと共通ライブラリの `V1` が baseline 以下と見なされてスキップされるため、`baselineVersion=0` を明示して `V1` 以降が確実に適用されるようにする。
  
- 主要な変数：
-diff --git a/scripts/setup-lint-tools.mjs b/scripts/setup-lint-tools.mjs
-index 176a8cc..7917b16 100644
---- a/scripts/setup-lint-tools.mjs
-+++ b/scripts/setup-lint-tools.mjs
-@@ -33,9 +33,15 @@ function resolveMaven() {
- function runMavenLintSetup() {
-   const mvn = resolveMaven();
-   console.log('[setup-lint-tools] Resolving lint tool jars via Maven...');
--  const result = spawnSync(mvn, ['-Plint-setup', 'initialize', '-q'], {
-+  // Windows では `mvnw.cmd`（バッチ）を直接 spawn すると Node 20.12+/22 のセキュリティ修正
-+  // により EINVAL になるため `shell: true` を付与する。shell 経由時はパスに空白が含まれても
-+  // 壊れないよう実行ファイル側を明示的に quote する（args 側は空白を含まないので素のまま）。
-+  const useShell = process.platform === 'win32';
-+  const command = useShell ? `"${mvn}"` : mvn;
-+  const result = spawnSync(command, ['-Plint-setup', 'initialize', '-q'], {
-     cwd: PROJECT_ROOT,
-     stdio: 'inherit',
-+    shell: useShell,
-   });
-   if (result.status !== 0) {
-     console.error('[setup-lint-tools] ./mvnw -Plint-setup initialize failed.');
-diff --git a/scripts/wildfly-ensure-running.sh b/scripts/wildfly-ensure-running.sh
-index c1c4a87..e9b6e72 100755
---- a/scripts/wildfly-ensure-running.sh
-+++ b/scripts/wildfly-ensure-running.sh
-@@ -19,6 +19,13 @@ DEBUG_PORT="${WILDFLY_DEBUG_PORT:-8787}"
- E2E_MODE="${E2E_MODE:-0}"
- JACOCO_AGENT_JAR="${JACOCO_AGENT_JAR:-}"
- JACOCO_E2E_EXEC="${JACOCO_E2E_EXEC:-}"
-+# Windows(git bash) では Maven がバックスラッシュ区切りの Windows パスを環境変数で渡す。
-+# これを後段で standalone.sh の未クオート `$JAVA_OPTS` 展開へ載せると、java 起動時に
-+# バックスラッシュが失われて `-javaagent` の JAR を開けなくなる（Error opening zip file）。
-+# java はスラッシュ区切りの Windows パスも解釈できるため、ここでスラッシュへ正規化しておく
-+# （mac/Linux のパスはバックスラッシュを含まないので実質 no-op）。
-+JACOCO_AGENT_JAR="${JACOCO_AGENT_JAR//\\//}"
-+JACOCO_E2E_EXEC="${JACOCO_E2E_EXEC//\\//}"
- JACOCO_E2E_PORT="${JACOCO_E2E_PORT:-6300}"
- USER_NAME="${WILDFLY_USER:-admin}"
- PASS="${WILDFLY_PASSWORD:-admin}"
-@@ -49,12 +56,22 @@ wait_for_mgmt() {
- }
+ ## 3. ロギング
  
- is_port_in_use() {
--  # Mac/Linux 共通で動く lsof ベース。lsof が無ければ nc にフォールバック。
-+  local port="$1"
-+  # Mac/Linux は lsof を優先（従来挙動を維持）。lsof が無い環境（Windows git bash 等）は
-+  # bash の /dev/tcp で localhost 接続可否を見て LISTEN 判定する。/dev/tcp も使えない場合のみ
-+  # nc にフォールバックし、いずれも無ければ「未使用」とみなす。
-   if command -v lsof > /dev/null 2>&1; then
--    lsof -nP -iTCP:"$1" -sTCP:LISTEN > /dev/null 2>&1
--  else
--    nc -z localhost "$1" > /dev/null 2>&1
-+    lsof -nP -iTCP:"$port" -sTCP:LISTEN > /dev/null 2>&1
-+    return
-+  fi
-+  if (exec 3<> "/dev/tcp/127.0.0.1/${port}") > /dev/null 2>&1; then
-+    return 0
-   fi
-+  if command -v nc > /dev/null 2>&1; then
-+    nc -z localhost "$port" > /dev/null 2>&1
-+    return
-+  fi
-+  return 1
- }
+diff --git a/docs/docs/06-operations/flyway.md b/docs/docs/06-operations/flyway.md
+index 5f84af0..92a250e 100644
+--- a/docs/docs/06-operations/flyway.md
++++ b/docs/docs/06-operations/flyway.md
+@@ -4,16 +4,16 @@ PostgreSQL のスキーマ管理は Flyway で行う。バージョン migration
  
- # 既に management ポートが開いているときの分岐：
-diff --git a/scripts/with-env.sh b/scripts/with-env.sh
-index 6dd3c2e..099bb2b 100755
---- a/scripts/with-env.sh
-+++ b/scripts/with-env.sh
-@@ -7,4 +7,13 @@ if [ -f "$ENV_FILE" ]; then
-   . "$ENV_FILE"
-   set +a
- fi
+ ## ディレクトリ構成
+ 
+-| 種別                 | パス                                          | 用途                                                                 |
+-| -------------------- | --------------------------------------------- | -------------------------------------------------------------------- |
+-| バージョン migration | `src/main/resources/db/migration/V<n>__*.sql` | 本番・開発共通                                                       |
+-| 開発用シード         | `src/main/resources/db/seed/R__dev_seed.sql`  | `flyway:reset` 時のみ実行（`flyway:migrate` 通常実行では走らせない） |
++| 種別                 | パス                                                  | 用途                                                                                                                                                                                                 |
++| -------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
++| バージョン migration | `src/main/resources/db/migration/V<n>__*.sql`         | 本番・開発共通                                                                                                                                                                                       |
++| 開発/E2E シード      | `src/main/resources/db/dev-bootstrap/R__dev_seed.sql` | 本番共通の `db/migration` から分離。`db/dev-bootstrap` を `locations` に追加する `-Pe2e`（や開発用 flyway 実行）でのみ流れる。env 駆動デフォルト plugin（`locations=db/migration` のみ）では走らない |
+ 
+ ## 命名規約
+ 
+ - `V<n>__<description>.sql`：バージョン migration。一度適用したら **編集禁止**
+ - `R__<description>.sql`：Repeatable migration。チェックサムが変わると再適用される
+-- 本ボイラープレートでは **シードのみ R\_\_ を使う**（dev_seed）。本番には絶対適用しないため `seed/` ディレクトリで分離
++- 本ボイラープレートでは **シードのみ R\_\_ を使う**（dev_seed）。本番には絶対適用しないため `db/dev-bootstrap/` ディレクトリで分離
+ 
+ ## VSCode タスク
+ 
+@@ -28,5 +28,8 @@ PostgreSQL のスキーマ管理は Flyway で行う。バージョン migration
+ ## 運用上の注意
+ 
+ - 本番運用では `flyway.cleanDisabled=true` を設定する想定（適用先プロジェクトで対応）
+-- `db/seed/R__dev_seed.sql` が本番 location に紛れ込まないこと（Maven `<locations>` で明示分離）
++- `db/dev-bootstrap/R__dev_seed.sql` が本番 location に紛れ込まないこと（Maven `<locations>` で明示分離。デフォルト plugin は `db/migration` のみ）
++- **`db/dev-bootstrap` は専用の履歴テーブル `flyway_schema_history_dev_bootstrap` で管理する**（`-Pe2e` の `e2e-flyway-migrate-dev-bootstrap` 実行で `<table>` を上書き）。アプリ所有スキーマ（`db/migration`, 履歴 `flyway_schema_history`）とバージョン系譜を分離するため。将来ここに社内ライブラリ共通 DB の開発用 DDL（ライブラリ側が独自採番した `V*`）を足しても、アプリの `V*` と同一履歴に束ねないので `Found more than one migration with version` の衝突が起きない
++- **同実行には `baselineOnMigrate=true` + `baselineVersion=0` を付ける**。app schema 実行が先に `task` 等を作るため dev-bootstrap 実行時点で schema は非空だが、専用履歴テーブルはこの実行で初めて作られる → Flyway の安全ガード「非空スキーマ かつ 履歴テーブル無しの migrate は拒否」に掛かるため `baselineOnMigrate=true` で許可する。既定の `baselineVersion=1` だと共通ライブラリの `V1` が baseline 以下でスキップされるため `baselineVersion=0` を明示する
+ - V スクリプトを編集すると Flyway がチェックサム不一致でエラー化する。`V<n+1>__fix_*.sql` で追補すること
++- **既存 DB で `R__dev_seed.sql` を `db/migration` → `db/dev-bootstrap` へ移設した直後は `flyway:repair` が必要**。移設前に `dev seed` を適用済みの DB（ローカル postgres など）では、デフォルト `flyway:migrate` が `Detected applied migration not resolved locally: dev seed` で validate 失敗する（既定履歴テーブルに記録が残るが location から消えたため）。`bash scripts/with-env.sh ./mvnw flyway:repair` で履歴を整合させると解消する。E2E H2 は `mvn clean` で毎回まっさらなため対象外。この移設変更を pull した各開発者も一度だけ `flyway:repair` を実行すること
+diff --git a/pom.xml b/pom.xml
+index 81b63ae..4df8b4f 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -171,7 +171,9 @@
+ 				  package phase:
+ 				    1) maven-war-plugin: war:war で WAR を組み立て
+ 				    2) exec-maven-plugin (e2e-wildfly-start): WildFly 起動 (E2E_MODE=1, JaCoCo agent attach)
+-				    3) flyway-maven-plugin (e2e-flyway-migrate): H2 に V1 + R__dev_seed を migrate
++				    3) flyway-maven-plugin (e2e-flyway-migrate): アプリ所有スキーマ V*（db/migration, 履歴=flyway_schema_history）を migrate
++				    3') flyway-maven-plugin (e2e-flyway-migrate-dev-bootstrap): 開発/E2E 専用 seed 等（db/dev-bootstrap,
++				        履歴=flyway_schema_history_dev_bootstrap）を migrate。共通ライブラリ DDL とアプリ V* の系譜衝突を防ぐため履歴分離
+ 				  pre-integration-test phase:
+ 				    4) maven-dependency-plugin (copy-jacoco-agent-e2e): JaCoCo agent + CLI jar を target/jacoco-agent に展開
+ 				       ※ 厳密には initialize phase 実行のため package より前。便宜上ここで触れる。
+@@ -338,6 +340,10 @@
+ 							</dependency>
+ 						</dependencies>
+ 						<executions>
++							<!--
++								アプリ所有スキーマ（V*）。本番共通の正本 location。既定の履歴テーブル
++								flyway_schema_history で、アプリのバージョン系譜のみを管理する。
++							-->
+ 							<execution>
+ 								<id>e2e-flyway-migrate</id>
+ 								<!--
+@@ -352,10 +358,43 @@
+ 									<user>${e2e.h2.user}</user>
+ 									<password>${e2e.h2.password}</password>
+ 									<locations>
++										<!-- 本番共通のアプリ所有スキーマ（V*）。全環境で適用する正本。 -->
+ 										<location>filesystem:src/main/resources/db/migration</location>
+ 									</locations>
+ 								</configuration>
+ 							</execution>
++							<!--
++								開発/E2E 専用ブートストラップ（seed R__、将来は社内ライブラリ共通 DB の開発用 DDL V* も集約）。
++								アプリとは独立した履歴テーブル flyway_schema_history_dev_bootstrap で管理することで、
++								共通ライブラリが独自採番した V* を db/dev-bootstrap に置いても、アプリ所有スキーマの V* と
++								バージョン系譜が衝突しない（同一履歴テーブルに束ねると Found more than one migration with
++								version でエラーになる）。本番/ローカル共用のデフォルト flyway-maven-plugin
++								（locations=db/migration のみ）からは不可視のため、本番では流れない。
++								宣言順で app schema の後に走るため、seed の DELETE FROM task はアプリ側テーブル作成後に整合する。
 +
-+# Windows(git bash / MSYS)対策:
-+# MSYS ランタイムはネイティブ Windows プロセス（java.exe など）を起動する際、
-+# POSIX 絶対パス風の環境変数値を Windows パスへ自動変換する。
-+# 例: APP_CONTEXT_ROOT=/rcb → C:/Program Files/Git/rcb
-+# これによりコンテキストルートが壊れ WildFly 上のアプリが 404 になるため、
-+# 該当変数を変換対象から除外する。mac/Linux では未使用の環境変数となり無害。
-+export MSYS2_ENV_CONV_EXCL="${MSYS2_ENV_CONV_EXCL:+${MSYS2_ENV_CONV_EXCL};}APP_CONTEXT_ROOT"
++								baselineOnMigrate=true が必須: この実行時点で schema public は app schema（task 等）により
++								既に非空だが、専用履歴テーブル flyway_schema_history_dev_bootstrap はこの実行で初めて作られる。
++								Flyway は「非空スキーマ かつ 履歴テーブル無し」の migrate を安全ガードで拒否する
++								（Found non-empty schema but no schema history table）ため、baseline を許可する。
++								ただし baselineVersion=0 とし、共通ライブラリの V1 以降が baseline 以下と見なされて
++								スキップされるのを防ぐ（既定 baselineVersion=1 だと V1 が skip される）。
++							-->
++							<execution>
++								<id>e2e-flyway-migrate-dev-bootstrap</id>
++								<phase>package</phase>
++								<goals><goal>migrate</goal></goals>
++								<configuration>
++									<url>${e2e.h2.url}</url>
++									<user>${e2e.h2.user}</user>
++									<password>${e2e.h2.password}</password>
++									<table>flyway_schema_history_dev_bootstrap</table>
++									<baselineOnMigrate>true</baselineOnMigrate>
++									<baselineVersion>0</baselineVersion>
++									<locations>
++										<location>filesystem:src/main/resources/db/dev-bootstrap</location>
++									</locations>
++								</configuration>
++							</execution>
+ 						</executions>
+ 					</plugin>
+ 
+diff --git a/src/main/resources/db/dev-bootstrap/R__dev_seed.sql b/src/main/resources/db/dev-bootstrap/R__dev_seed.sql
+new file mode 100644
+index 0000000..2a97c6b
+--- /dev/null
++++ b/src/main/resources/db/dev-bootstrap/R__dev_seed.sql
+@@ -0,0 +1,19 @@
++-- 開発・E2E 用のシードデータ（本番には絶対に投入しない）。
++-- 本番共通の location (db/migration) から分離し、db/dev-bootstrap 配下に配置する。
++-- この location は -Pe2e の専用 flyway 実行 e2e-flyway-migrate-dev-bootstrap でのみ流れ、
++-- アプリ所有スキーマとは別の履歴テーブル flyway_schema_history_dev_bootstrap で管理される。
++-- env 駆動のデフォルト flyway-maven-plugin（本番/ローカル共用・locations=db/migration のみ）では走らない。
++-- 履歴を分離しているため、将来この配下に社内ライブラリ共通 DB の開発用 DDL (V*) を足しても
++-- アプリ所有スキーマの V* とバージョン系譜が衝突しない。
++-- Repeatable migration のため、DELETE FROM で冪等性を確保する（content hash 変化で再実行されても整合を保つ）。
++-- IT (JpaTestSupport.bootstrapH2) は V1 のみを classpath から直接 execute するため、
++-- 本 seed は IT には影響しない。
++-- 一覧・完了シナリオの起点として TODO を数件、表示確認用に DONE を 1 件投入する。
 +
- exec "$@"
++DELETE FROM task;
++
++INSERT INTO task (title, status, created_at, completed_at)
++VALUES
++  ('要件定義レビューの準備', 'TODO', '2026-07-01T09:00:00', NULL),
++  ('サンプルアプリの動作確認', 'TODO', '2026-07-02T10:30:00', NULL),
++  ('キックオフ議事録の作成', 'DONE', '2026-06-30T14:00:00', '2026-06-30T15:00:00');
+diff --git a/src/main/resources/db/migration/R__dev_seed.sql b/src/main/resources/db/migration/R__dev_seed.sql
+deleted file mode 100644
+index 30381b5..0000000
+--- a/src/main/resources/db/migration/R__dev_seed.sql
++++ /dev/null
+@@ -1,16 +0,0 @@
+--- 開発・E2E 用のシードデータ。
+--- Flyway 標準ロケーション (db/migration) 配下の Repeatable migration として配置するため、
+--- ローカル PG / E2E H2 / CI のいずれでも `flyway:migrate` 一発で投入される。
+--- DELETE FROM で冪等性を確保しているため、Flyway が R__* の content hash 変化を検知して
+--- 再実行しても整合性を保つ。
+--- IT (JpaTestSupport.bootstrapH2) は V1 のみを classpath から直接 execute するため、
+--- 本 seed は IT には影響しない。
+--- 一覧・完了シナリオの起点として TODO を数件、表示確認用に DONE を 1 件投入する。
+-
+-DELETE FROM task;
+-
+-INSERT INTO task (title, status, created_at, completed_at)
+-VALUES
+-  ('要件定義レビューの準備', 'TODO', '2026-07-01T09:00:00', NULL),
+-  ('サンプルアプリの動作確認', 'TODO', '2026-07-02T10:30:00', NULL),
+-  ('キックオフ議事録の作成', 'DONE', '2026-06-30T14:00:00', '2026-06-30T15:00:00');
