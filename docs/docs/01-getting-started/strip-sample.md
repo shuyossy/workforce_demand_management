@@ -59,7 +59,7 @@ rm src/test/java/jp/mufg/it/rcb/shared/web/SystemClockAdapterTest.java
 
 ```bash
 rm src/main/resources/db/migration/V1__init.sql
-rm src/main/resources/db/migration/R__dev_seed.sql
+rm src/main/resources/db/dev-bootstrap/R__dev_seed.sql
 rm -rf src/main/webapp/tasks
 ```
 

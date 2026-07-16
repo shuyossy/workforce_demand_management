@@ -171,7 +171,9 @@
 				  package phase:
 				    1) maven-war-plugin: war:war で WAR を組み立て
 				    2) exec-maven-plugin (e2e-wildfly-start): WildFly 起動 (E2E_MODE=1, JaCoCo agent attach)
-				    3) flyway-maven-plugin (e2e-flyway-migrate): H2 に V1 + R__dev_seed を migrate
+				    3) flyway-maven-plugin (e2e-flyway-migrate): アプリ所有スキーマ V*（db/migration, 履歴=flyway_schema_history）を migrate
+				    3') flyway-maven-plugin (e2e-flyway-migrate-dev-bootstrap): 開発/E2E 専用 seed 等（db/dev-bootstrap,
+				        履歴=flyway_schema_history_dev_bootstrap）を migrate。共通ライブラリ DDL とアプリ V* の系譜衝突を防ぐため履歴分離
 				  pre-integration-test phase:
 				    4) maven-dependency-plugin (copy-jacoco-agent-e2e): JaCoCo agent + CLI jar を target/jacoco-agent に展開
 				       ※ 厳密には initialize phase 実行のため package より前。便宜上ここで触れる。
@@ -338,6 +340,10 @@
 							</dependency>
 						</dependencies>
 						<executions>
+							<!--
+								アプリ所有スキーマ（V*）。本番共通の正本 location。既定の履歴テーブル
+								flyway_schema_history で、アプリのバージョン系譜のみを管理する。
+							-->
 							<execution>
 								<id>e2e-flyway-migrate</id>
 								<!--
@@ -352,7 +358,40 @@
 									<user>${e2e.h2.user}</user>
 									<password>${e2e.h2.password}</password>
 									<locations>
+										<!-- 本番共通のアプリ所有スキーマ（V*）。全環境で適用する正本。 -->
 										<location>filesystem:src/main/resources/db/migration</location>
+									</locations>
+								</configuration>
+							</execution>
+							<!--
+								開発/E2E 専用ブートストラップ（seed R__、将来は社内ライブラリ共通 DB の開発用 DDL V* も集約）。
+								アプリとは独立した履歴テーブル flyway_schema_history_dev_bootstrap で管理することで、
+								共通ライブラリが独自採番した V* を db/dev-bootstrap に置いても、アプリ所有スキーマの V* と
+								バージョン系譜が衝突しない（同一履歴テーブルに束ねると Found more than one migration with
+								version でエラーになる）。本番/ローカル共用のデフォルト flyway-maven-plugin
+								（locations=db/migration のみ）からは不可視のため、本番では流れない。
+								宣言順で app schema の後に走るため、seed の DELETE FROM task はアプリ側テーブル作成後に整合する。
+
+								baselineOnMigrate=true が必須: この実行時点で schema public は app schema（task 等）により
+								既に非空だが、専用履歴テーブル flyway_schema_history_dev_bootstrap はこの実行で初めて作られる。
+								Flyway は「非空スキーマ かつ 履歴テーブル無し」の migrate を安全ガードで拒否する
+								（Found non-empty schema but no schema history table）ため、baseline を許可する。
+								ただし baselineVersion=0 とし、共通ライブラリの V1 以降が baseline 以下と見なされて
+								スキップされるのを防ぐ（既定 baselineVersion=1 だと V1 が skip される）。
+							-->
+							<execution>
+								<id>e2e-flyway-migrate-dev-bootstrap</id>
+								<phase>package</phase>
+								<goals><goal>migrate</goal></goals>
+								<configuration>
+									<url>${e2e.h2.url}</url>
+									<user>${e2e.h2.user}</user>
+									<password>${e2e.h2.password}</password>
+									<table>flyway_schema_history_dev_bootstrap</table>
+									<baselineOnMigrate>true</baselineOnMigrate>
+									<baselineVersion>0</baselineVersion>
+									<locations>
+										<location>filesystem:src/main/resources/db/dev-bootstrap</location>
 									</locations>
 								</configuration>
 							</execution>
