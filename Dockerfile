@@ -20,7 +20,28 @@ FROM quay.io/wildfly/wildfly:32.0.1.Final-jdk17 AS runtime
 
 USER root
 
-# CLI スクリプト適用（offline モード、起動前）
+# PostgreSQL JDBC ドライバを WildFly モジュールとして配置
+# （docker-entrypoint.sh が offline 適用する 01-datasource-postgres.cli の
+#   driver-module-name=org.postgresql を boot 時に解決可能にする。
+#   バージョンは pom.xml の <postgresql.version> と揃えること）
+ARG PG_DRIVER_VERSION=42.7.3
+RUN mkdir -p /opt/jboss/wildfly/modules/system/layers/base/org/postgresql/main \
+ && curl -fsSL "https://repo1.maven.org/maven2/org/postgresql/postgresql/${PG_DRIVER_VERSION}/postgresql-${PG_DRIVER_VERSION}.jar" \
+        -o /opt/jboss/wildfly/modules/system/layers/base/org/postgresql/main/postgresql.jar \
+ && cat > /opt/jboss/wildfly/modules/system/layers/base/org/postgresql/main/module.xml <<'EOF'
+<?xml version="1.0" ?>
+<module xmlns="urn:jboss:module:1.5" name="org.postgresql">
+  <resources>
+    <resource-root path="postgresql.jar"/>
+  </resources>
+  <dependencies>
+    <module name="javax.api"/>
+    <module name="javax.transaction.api"/>
+  </dependencies>
+</module>
+EOF
+
+# CLI スクリプト配置（datasource 等は docker-entrypoint.sh が起動前に offline 適用）
 COPY wildfly/cli/ /opt/jboss/cli/
 COPY scripts/docker-entrypoint.sh /opt/jboss/docker-entrypoint.sh
 RUN chmod +x /opt/jboss/docker-entrypoint.sh
@@ -32,6 +53,17 @@ RUN /opt/jboss/wildfly/bin/jboss-cli.sh --file=/opt/jboss/cli/05-ee-descriptor-r
 
 # WAR を deployments に配置
 COPY --from=build /app/target/rcb-*.war /opt/jboss/wildfly/standalone/deployments/rcb.war
+
+# root で実行した embed-server の残骸を掃除し、所有権を実行ユーザ jboss へ戻す。
+# - standalone_xml_history / data / log / tmp はイメージレイヤに残すと、boot 時の履歴
+#   ローテーション（ディレクトリ rename）が overlayfs のレイヤ跨ぎ制約で
+#   WFLYCTL0056 (DirectoryNotEmptyException) になるため削除する（boot 時に再生成される）。
+# - chown を怠ると boot 時に server.log へ書き込めず Permission denied で起動不能になる。
+RUN rm -rf /opt/jboss/wildfly/standalone/configuration/standalone_xml_history \
+      /opt/jboss/wildfly/standalone/data \
+      /opt/jboss/wildfly/standalone/log \
+      /opt/jboss/wildfly/standalone/tmp \
+ && chown -R jboss:root /opt/jboss/wildfly/standalone
 
 USER jboss
 

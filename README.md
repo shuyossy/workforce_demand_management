@@ -124,18 +124,20 @@ cd docs && npm run build            # docusaurus サイトのビルド
 # マルチステージビルド（Maven で WAR 生成 → WildFly イメージへ deploy）
 DOCKER_BUILDKIT=1 docker build -t rcb:local .
 
-# 起動（PostgreSQL は別途用意。WildFly が 8080/9990 を公開）
-# 環境変数 DB_NAME / DB_USER / DB_PASSWORD は適用先プロジェクトの DB 設定に合わせて置換。
+# 起動（PostgreSQL は別途用意し、Flyway migrate 済であること。WildFly が 8080/9990 を公開）
+# DB_URL / DB_USER / DB_PASSWORD は必須（未設定時は entrypoint が明示エラーで停止）。
+# APP_CONTEXT_ROOT は省略可（既定 /rcb）。APP_JSF_PROJECT_STAGE / APP_SESSION_COOKIE_SECURE /
+# APP_SESSION_TIMEOUT_MINUTES も web.xml の既定（本番安全側）を上書きしたい場合のみ指定。
 docker run --rm -p 8080:8080 -p 9990:9990 \
-  -e DB_HOST=host.docker.internal -e DB_PORT=5432 \
-  -e DB_NAME=app -e DB_USER=app -e DB_PASSWORD=app \
+  -e DB_URL=jdbc:postgresql://host.docker.internal:5432/rcb \
+  -e DB_USER=rcb -e DB_PASSWORD=rcb \
   rcb:local
 
 # Trivy スキャン（ローカル検証用）
 docker run --rm aquasec/trivy:latest image rcb:local
 ```
 
-`wildfly/cli/` 配下の CLI スクリプト（プロジェクトルート直下）でデータソース（`PostgresDS`）/ system properties / logging / proxy forwarding を起動前に適用します。接続情報は環境変数で渡します（CLI 内で `if outcome != success` 構文を使って冪等化済み）。
+`wildfly/cli/` 配下の CLI スクリプト（プロジェクトルート直下）でデータソース（`PostgresDS`）/ system properties / logging / proxy forwarding を適用します。コンテナでは `scripts/docker-entrypoint.sh` が WildFly 起動前に `01`〜`04` の CLI を 1 つの `embed-server` セッションに束ねて offline 適用（standalone.xml へ永続化）し、web.xml の `${env.*}` 置換有効化（`05`）はイメージ build 時に焼き込みます。接続情報は環境変数で渡します（CLI 内で `if outcome != success` 構文を使って冪等化済み）。
 
 ## ドキュメント
 

@@ -48,6 +48,10 @@ EOF
 COPY wildfly/cli/05-ee-descriptor-replacement.cli /opt/jboss/cli/05-ee-descriptor-replacement.cli
 RUN /opt/jboss/wildfly/bin/jboss-cli.sh --file=/opt/jboss/cli/05-ee-descriptor-replacement.cli
 
+# root で実行した add-user.sh / embed-server が standalone/ 配下に root 所有ファイルを残すため、
+# 実行ユーザ jboss へ所有権を戻す（本番 Dockerfile と同一の boot 時 Permission denied 対策）。
+RUN chown -R jboss:root /opt/jboss/wildfly/standalone
+
 USER jboss
 
 EXPOSE 8080 9990 8787
