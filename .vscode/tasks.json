@@ -69,7 +69,7 @@
     {
       "label": "wildfly:redeploy",
       "type": "shell",
-      "command": "bash scripts/with-env.sh ./mvnw -q -DskipTests package wildfly:deploy -Dwildfly.force=true",
+      "command": "bash scripts/with-env.sh ./mvnw -q -DskipTests clean package wildfly:deploy -Dwildfly.force=true",
       "problemMatcher": []
     },
     {
